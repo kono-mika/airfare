@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AirFare: check done</title>
+<link rel="icon" href="icons/icon32.png">
+<style>
+:root { --paper:#F3F7F7; --ink:#13262B; --muted:#56666B; --sky:#0E8F8B; --red:#D93B30; }
+@media (prefers-color-scheme: dark) { :root { --paper:#0C1718; --ink:#E6F0F0; --muted:#93A6A8; --sky:#5FD3CF; --red:#FF6B5E; } }
+body { margin:0; min-height:100vh; display:grid; place-items:center; background:var(--paper); color:var(--ink);
+  font:16px/1.55 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif; border-top:6px solid;
+  border-image:repeating-linear-gradient(-45deg,var(--red) 0 12px,transparent 12px 19px,var(--sky) 19px 31px,transparent 31px 38px) 1; }
+main { max-width:500px; padding:32px 24px; text-align:center; }
+img { width:72px; height:72px; }
+h1 { font:600 26px "Bahnschrift","Segoe UI",sans-serif; margin:12px 0 6px; }
+p { color:var(--muted); margin:0; }
+</style>
+</head>
+<body>
+<main>
+  <img src="icons/icon128.png" alt="">
+  <h1 id="t">Price check done</h1>
+  <p id="s">AirFare has closed the flight tabs it opened. This page stays so Chrome doesn't remember the flight
+    pages as your last session. If Chrome offers to restore your previous tabs, you can do it here.
+    Otherwise, close this window.</p>
+</main>
+<script src="done.js"></script>
+</body>
+</html>

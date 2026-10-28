@@ -1,0 +1,62 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -r requirements.txt -r requirements-dev.txt
+      - run: python -m pytest -q
+
+  # install.sh end to end on a fresh Mac and Linux: Python, .venv, packages, app entry, start at login, health
+  # check; then Settings answers, a check and the background checker run and stop, and uninstall.sh cleans up.
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: sh install.sh --quiet
+      - name: The app entry and the start-at-login entry are there
+        run: .venv/bin/python -c "from airfare import platform as p; assert p.app_entry_path().exists() and p.login_item_path().exists()"
+      - name: Settings answers
+        run: |
+          .venv/bin/python -m airfare setup --no-open &
+          server=$!
+          for i in $(seq 30); do curl -sf http://127.0.0.1:8765/api/version && break; sleep 1; done
+          curl -sf http://127.0.0.1:8765/api/version
+          kill $server
+      - name: A check and the background checker run and stop by themselves
+        env:
+          AIRFARE_DATA: ${{ runner.temp }}/airfare-data
+        run: |
+          .venv/bin/python - <<'EOF'
+          from airfare import config
+          config.save_config({**config.DEFAULT_CONFIG, "language": "en", "sources": ["serpapi"], "serpapi_key": "",
+                              "routes": [{"id": "r1", "origin": "lhr", "destination": "bcn", "trip": "oneway",
+                                          "depart_from": "2027-03-12"}]})
+          EOF
+          code=0; .venv/bin/python -m airfare run || code=$?
+          test "$code" = 2                         # nothing to check with: SerpApi has no key
+          .venv/bin/python -m airfare service      # startup-only schedule: one check, then it stops
+          grep -q "background checker started" "$AIRFARE_DATA/logs/airfare.log"
+      - run: sh uninstall.sh
+      - name: uninstall.sh removed the entries
+        run: .venv/bin/python -c "from airfare import platform as p; assert not p.app_entry_path().exists() and not p.login_item_path().exists()"

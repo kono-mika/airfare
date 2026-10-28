@@ -1,0 +1,58 @@
+{
+  "manifest_version": 3,
+  "name": "AirFare collector",
+  "version": "1.3.0",
+  "description": "Reads Skyscanner and Aviasales search results for the AirFare app on this PC, only when AirFare asks, and closes only the tabs it opened. Independent: not affiliated with Skyscanner or Aviasales.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "minimum_chrome_version": "111",
+  "permissions": [
+    "alarms",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8766/*",
+    "https://www.skyscanner.net/*",
+    "https://www.skyscanner.com/*",
+    "https://www.skyscanner.ie/*",
+    "https://www.skyscanner.es/*",
+    "https://www.skyscanner.de/*",
+    "https://www.skyscanner.fr/*",
+    "https://www.skyscanner.it/*",
+    "https://www.skyscanner.nl/*",
+    "https://www.skyscanner.pt/*",
+    "https://www.skyscanner.pl/*",
+    "https://www.skyscanner.at/*",
+    "https://www.skyscanner.ch/*",
+    "https://www.skyscanner.se/*",
+    "https://www.skyscanner.no/*",
+    "https://www.skyscanner.dk/*",
+    "https://www.skyscanner.fi/*",
+    "https://www.skyscanner.ro/*",
+    "https://www.skyscanner.cz/*",
+    "https://www.skyscanner.hu/*",
+    "https://www.skyscanner.gr/*",
+    "https://www.skyscanner.com.tr/*",
+    "https://www.skyscanner.ca/*",
+    "https://www.skyscanner.com.au/*",
+    "https://www.skyscanner.co.nz/*",
+    "https://www.skyscanner.co.in/*",
+    "https://www.skyscanner.co.za/*",
+    "https://www.skyscanner.ae/*",
+    "https://www.skyscanner.com.br/*",
+    "https://www.skyscanner.com.mx/*",
+    "https://www.skyscanner.jp/*",
+    "https://www.skyscanner.co.kr/*",
+    "https://www.skyscanner.com.sg/*",
+    "https://www.skyscanner.com.hk/*",
+    "https://www.aviasales.ru/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

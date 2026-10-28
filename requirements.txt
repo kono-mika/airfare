@@ -1,0 +1,5 @@
+# Exact versions AirFare was tested with, so every PC installs the same code.
+claude-agent-sdk==0.2.174
+markdown==3.11.2
+pystray==0.19.5     # the tray icon (Settings → When to check); AirFare runs without it if it's missing
+pillow==12.3.0      # draws the tray icon

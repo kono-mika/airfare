@@ -1,0 +1,805 @@
+{
+ "context": {
+  "status": "incomplete",
+  "sessionId": "x"
+ },
+ "itineraries": {
+  "destinationImageUrl": "https://content.skyscnr.com/m/3719e8f4a5daf43d/original/Flights-Placeholder.jpg",
+  "filterStats": {
+   "duration": {
+    "min": 170,
+    "max": 170,
+    "multiCityMin": 330,
+    "multiCityMax": 335
+   },
+   "total": 3,
+   "hasCityOpenJaw": true,
+   "multipleCarriers": {
+    "minPrice": "£155",
+    "rawMinPrice": 154.97
+   },
+   "airports": [
+    {
+     "city": "London",
+     "airports": [
+      {
+       "id": "LTN",
+       "entityId": "95565053",
+       "name": "London Luton"
+      },
+      {
+       "id": "STN",
+       "entityId": "95565052",
+       "name": "London Stansted"
+      }
+     ]
+    },
+    {
+     "city": "Vilnius",
+     "airports": [
+      {
+       "id": "VNO",
+       "entityId": "95673717",
+       "name": "Vilnius"
+      }
+     ]
+    }
+   ],
+   "carriers": [
+    {
+     "id": -31915,
+     "alternateId": "FR",
+     "logoUrl": "https://logos.skyscnr.com/images/airlines/favicon/FR.png",
+     "name": "Ryanair",
+     "minPrice": "£174",
+     "allianceId": 0,
+     "rawMinPrice": 173.04
+    }
+   ],
+   "stopPrices": {
+    "direct": {
+     "isPresent": true,
+     "formattedPrice": "£155",
+     "rawPrice": 155.0
+    },
+    "one": {
+     "isPresent": false
+    },
+    "twoOrMore": {
+     "isPresent": false
+    }
+   },
+   "alliances": [],
+   "layoverAirports": [],
+   "layoverDuration": null
+  },
+  "alliances": [],
+  "context": {
+   "status": "incomplete",
+   "sessionId": "x",
+   "totalResults": 3
+  },
+  "results": [
+   {
+    "id": "17567-2612180615--31915-0-16574-2612180705|16574-2612271125--31915-0-17567-2612271605",
+    "token": "x",
+    "price": {
+     "raw": 173.04,
+     "formatted": "£174",
+     "pricingOptionId": "x"
+    },
+    "legs": [
+     {
+      "id": "17567-2612180615--31915-0-16574-2612180705",
+      "origin": {
+       "id": "VNO",
+       "entityId": "95673717",
+       "name": "Vilnius",
+       "displayCode": "VNO",
+       "city": "Vilnius",
+       "country": "Lithuania",
+       "isHighlighted": false
+      },
+      "destination": {
+       "id": "STN",
+       "entityId": "95565052",
+       "name": "London Stansted",
+       "displayCode": "STN",
+       "city": "London",
+       "country": "United Kingdom",
+       "isHighlighted": false
+      },
+      "durationInMinutes": 170,
+      "stopCount": 0,
+      "isSmallestStops": false,
+      "departure": "2026-12-18T06:15:00",
+      "arrival": "2026-12-18T07:05:00",
+      "timeDeltaInDays": 0,
+      "carriers": {
+       "marketing": [
+        {
+         "id": -31915,
+         "alternateId": "FR",
+         "logoUrl": "https://logos.skyscnr.com/images/airlines/favicon/FR.png",
+         "name": "Ryanair"
+        }
+       ],
+       "operating": [
+        {
+         "id": -30821,
+         "alternateId": "JF",
+         "logoUrl": "https://logos.skyscnr.com/images/airlines/favicon/JF.png",
+         "name": "Buzz"
+        }
+       ],
+       "operationType": "not_operated"
+      },
+      "segments": [
+       {
+        "id": "17567-16574-2612180615-2612180705--31915",
+        "origin": {
+         "entityId": "95673717",
+         "flightPlaceId": "VNO",
+         "displayCode": "VNO",
+         "parent": {
+          "entityId": "27547414",
+          "flightPlaceId": "VILN",
+          "displayCode": "VNO",
+          "name": "Vilnius",
+          "type": "City"
+         },
+         "name": "Vilnius",
+         "type": "Airport",
+         "country": "Lithuania",
+         "countryId": "LT"
+        },
+        "destination": {
+         "entityId": "95565052",
+         "flightPlaceId": "STN",
+         "displayCode": "STN",
+         "parent": {
+          "entityId": "27544008",
+          "flightPlaceId": "LOND",
+          "displayCode": "LON",
+          "name": "London",
+          "type": "City"
+         },
+         "name": "London Stansted",
+         "type": "Airport",
+         "country": "United Kingdom",
+         "countryId": "UK"
+        },
+        "departure": "2026-12-18T06:15:00",
+        "arrival": "2026-12-18T07:05:00",
+        "durationInMinutes": 170,
+        "flightNumber": "542",
+        "marketingCarrier": {
+         "id": -31915,
+         "name": "Ryanair",
+         "alternateId": "FR",
+         "allianceId": 0,
+         "displayCode": "FR"
+        },
+        "operatingCarrier": {
+         "id": -30821,
+         "name": "Buzz",
+         "alternateId": "JF",
+         "allianceId": 0,
+         "displayCode": "RR"
+        },
+        "transport": {
+         "mode": "TRANSPORT_MODE_FLIGHT"
+        }
+       }
+      ]
+     },
+     {
+      "id": "16574-2612271125--31915-0-17567-2612271605",
+      "origin": {
+       "id": "STN",
+       "entityId": "95565052",
+       "name": "London Stansted",
+       "displayCode": "STN",
+       "city": "London",
+       "country": "United Kingdom",
+       "isHighlighted": false
+      },
+      "destination": {
+       "id": "VNO",
+       "entityId": "95673717",
+       "name": "Vilnius",
+       "displayCode": "VNO",
+       "city": "Vilnius",
+       "country": "Lithuania",
+       "isHighlighted": false
+      },
+      "durationInMinutes": 160,
+      "stopCount": 0,
+      "isSmallestStops": false,
+      "departure": "2026-12-27T11:25:00",
+      "arrival": "2026-12-27T16:05:00",
+      "timeDeltaInDays": 0,
+      "carriers": {
+       "marketing": [
+        {
+         "id": -31915,
+         "alternateId": "FR",
+         "logoUrl": "https://logos.skyscnr.com/images/airlines/favicon/FR.png",
+         "name": "Ryanair"
+        }
+       ],
+       "operating": [
+        {
+         "id": -30823,
+         "alternateId": "7A",
+         "logoUrl": "https://logos.skyscnr.com/images/airlines/favicon/7A.png",
+         "name": "Malta Air"
+        }
+       ],
+       "operationType": "not_operated"
+      },
+      "segments": [
+       {
+        "id": "16574-17567-2612271125-2612271605--31915",
+        "origin": {
+         "entityId": "95565052",
+         "flightPlaceId": "STN",
+         "displayCode": "STN",
+         "parent": {
+          "entityId": "27544008",
+          "flightPlaceId": "LOND",
+          "displayCode": "LON",
+          "name": "London",
+          "type": "City"
+         },
+         "name": "London Stansted",
+         "type": "Airport",
+         "country": "United Kingdom",
+         "countryId": "UK"
+        },
+        "destination": {
+         "entityId": "95673717",
+         "flightPlaceId": "VNO",
+         "displayCode": "VNO",
+         "parent": {
+          "entityId": "27547414",
+          "flightPlaceId": "VILN",
+          "displayCode": "VNO",
+          "name": "Vilnius",
+          "type": "City"
+         },
+         "name": "Vilnius",
+         "type": "Airport",
+         "country": "Lithuania",
+         "countryId": "LT"
+        },
+        "departure": "2026-12-27T11:25:00",
+        "arrival": "2026-12-27T16:05:00",
+        "durationInMinutes": 160,
+        "flightNumber": "543",
+        "marketingCarrier": {
+         "id": -31915,
+         "name": "Ryanair",
+         "alternateId": "FR",
+         "allianceId": 0,
+         "displayCode": "FR"
+        },
+        "operatingCarrier": {
+         "id": -30823,
+         "name": "Malta Air",
+         "alternateId": "7A",
+         "allianceId": 0,
+         "displayCode": "MW"
+        },
+        "transport": {
+         "mode": "TRANSPORT_MODE_FLIGHT"
+        }
+       }
+      ]
+     }
+    ],
+    "isSelfTransfer": false,
+    "isProtectedSelfTransfer": false,
+    "farePolicy": {
+     "isChangeAllowed": false,
+     "isPartiallyChangeable": false,
+     "isCancellationAllowed": false,
+     "isPartiallyRefundable": false
+    },
+    "eco": {
+     "ecoContenderDelta": 14.428801
+    },
+    "emissions": {
+     "emissionsKg": 276.555,
+     "emissionsDeltaPercentage": -14.428799,
+     "typicalEmissionsKg": 323.187,
+     "emissionsDeltaKg": -46.63202,
+     "emissionsLevel": "lower"
+    },
+    "fareAttributes": {},
+    "tags": [
+     "second_cheapest",
+     "shortest"
+    ],
+    "isMashUp": false,
+    "hasFlexibleOptions": false,
+    "score": 0.999
+   },
+   {
+    "id": "17567-2612180615--31915-0-16574-2612180705|13771-2612271450--31915-0-17567-2612271935",
+    "token": "x",
+    "price": {
+     "raw": 192.97,
+     "formatted": "£193",
+     "pricingOptionId": "x"
+    },
+    "legs": [
+     {
+      "id": "17567-2612180615--31915-0-16574-2612180705",
+      "origin": {
+       "id": "VNO",
+       "entityId": "95673717",
+       "name": "Vilnius",
+       "displayCode": "VNO",
+       "city": "Vilnius",
+       "country": "Lithuania",
+       "isHighlighted": false
+      },
+      "destination": {
+       "id": "STN",
+       "entityId": "95565052",
+       "name": "London Stansted",
+       "displayCode": "STN",
+       "city": "London",
+       "country": "United Kingdom",
+       "isHighlighted": true
+      },
+      "durationInMinutes": 170,
+      "stopCount": 0,
+      "isSmallestStops": false,
+      "departure": "2026-12-18T06:15:00",
+      "arrival": "2026-12-18T07:05:00",
+      "timeDeltaInDays": 0,
+      "carriers": {
+       "marketing": [
+        {
+         "id": -31915,
+         "alternateId": "FR",
+         "logoUrl": "https://logos.skyscnr.com/images/airlines/favicon/FR.png",
+         "name": "Ryanair"
+        }
+       ],
+       "operating": [
+        {
+         "id": -30821,
+         "alternateId": "JF",
+         "logoUrl": "https://logos.skyscnr.com/images/airlines/favicon/JF.png",
+         "name": "Buzz"
+        }
+       ],
+       "operationType": "not_operated"
+      },
+      "segments": [
+       {
+        "id": "17567-16574-2612180615-2612180705--31915",
+        "origin": {
+         "entityId": "95673717",
+         "flightPlaceId": "VNO",
+         "displayCode": "VNO",
+         "parent": {
+          "entityId": "27547414",
+          "flightPlaceId": "VILN",
+          "displayCode": "VNO",
+          "name": "Vilnius",
+          "type": "City"
+         },
+         "name": "Vilnius",
+         "type": "Airport",
+         "country": "Lithuania",
+         "countryId": "LT"
+        },
+        "destination": {
+         "entityId": "95565052",
+         "flightPlaceId": "STN",
+         "displayCode": "STN",
+         "parent": {
+          "entityId": "27544008",
+          "flightPlaceId": "LOND",
+          "displayCode": "LON",
+          "name": "London",
+          "type": "City"
+         },
+         "name": "London Stansted",
+         "type": "Airport",
+         "country": "United Kingdom",
+         "countryId": "UK"
+        },
+        "departure": "2026-12-18T06:15:00",
+        "arrival": "2026-12-18T07:05:00",
+        "durationInMinutes": 170,
+        "flightNumber": "542",
+        "marketingCarrier": {
+         "id": -31915,
+         "name": "Ryanair",
+         "alternateId": "FR",
+         "allianceId": 0,
+         "displayCode": "FR"
+        },
+        "operatingCarrier": {
+         "id": -30821,
+         "name": "Buzz",
+         "alternateId": "JF",
+         "allianceId": 0,
+         "displayCode": "RR"
+        },
+        "transport": {
+         "mode": "TRANSPORT_MODE_FLIGHT"
+        }
+       }
+      ]
+     },
+     {
+      "id": "13771-2612271450--31915-0-17567-2612271935",
+      "origin": {
+       "id": "LTN",
+       "entityId": "95565053",
+       "name": "London Luton",
+       "displayCode": "LTN",
+       "city": "London",
+       "country": "United Kingdom",
+       "isHighlighted": true
+      },
+      "destination": {
+       "id": "VNO",
+       "entityId": "95673717",
+       "name": "Vilnius",
+       "displayCode": "VNO",
+       "city": "Vilnius",
+       "country": "Lithuania",
+       "isHighlighted": false
+      },
+      "durationInMinutes": 165,
+      "stopCount": 0,
+      "isSmallestStops": false,
+      "departure": "2026-12-27T14:50:00",
+      "arrival": "2026-12-27T19:35:00",
+      "timeDeltaInDays": 0,
+      "carriers": {
+       "marketing": [
+        {
+         "id": -31915,
+         "alternateId": "FR",
+         "logoUrl": "https://logos.skyscnr.com/images/airlines/favicon/FR.png",
+         "name": "Ryanair"
+        }
+       ],
+       "operationType": "fully_operated"
+      },
+      "segments": [
+       {
+        "id": "13771-17567-2612271450-2612271935--31915",
+        "origin": {
+         "entityId": "95565053",
+         "flightPlaceId": "LTN",
+         "displayCode": "LTN",
+         "parent": {
+          "entityId": "27544008",
+          "flightPlaceId": "LOND",
+          "displayCode": "LON",
+          "name": "London",
+          "type": "City"
+         },
+         "name": "London Luton",
+         "type": "Airport",
+         "country": "United Kingdom",
+         "countryId": "UK"
+        },
+        "destination": {
+         "entityId": "95673717",
+         "flightPlaceId": "VNO",
+         "displayCode": "VNO",
+         "parent": {
+          "entityId": "27547414",
+          "flightPlaceId": "VILN",
+          "displayCode": "VNO",
+          "name": "Vilnius",
+          "type": "City"
+         },
+         "name": "Vilnius",
+         "type": "Airport",
+         "country": "Lithuania",
+         "countryId": "LT"
+        },
+        "departure": "2026-12-27T14:50:00",
+        "arrival": "2026-12-27T19:35:00",
+        "durationInMinutes": 165,
+        "flightNumber": "3466",
+        "marketingCarrier": {
+         "id": -31915,
+         "name": "Ryanair",
+         "alternateId": "FR",
+         "allianceId": 0,
+         "displayCode": "FR"
+        },
+        "operatingCarrier": {
+         "id": -31915,
+         "name": "Ryanair",
+         "alternateId": "FR",
+         "allianceId": 0,
+         "displayCode": "FR"
+        },
+        "transport": {
+         "mode": "TRANSPORT_MODE_FLIGHT"
+        }
+       }
+      ]
+     }
+    ],
+    "isSelfTransfer": false,
+    "isProtectedSelfTransfer": false,
+    "farePolicy": {
+     "isChangeAllowed": false,
+     "isPartiallyChangeable": false,
+     "isCancellationAllowed": false,
+     "isPartiallyRefundable": false
+    },
+    "eco": {
+     "ecoContenderDelta": 13.322628
+    },
+    "emissions": {
+     "emissionsKg": 280.13,
+     "emissionsDeltaPercentage": -13.322628,
+     "typicalEmissionsKg": 323.187,
+     "emissionsDeltaKg": -43.057007,
+     "emissionsLevel": "lower"
+    },
+    "fareAttributes": {},
+    "tags": [
+     "third_cheapest",
+     "third_shortest"
+    ],
+    "isMashUp": true,
+    "hasFlexibleOptions": false,
+    "score": 0.836558
+   },
+   {
+    "id": "17567-2612180615--31915-0-16574-2612180705|13771-2612270735--31669-0-17567-2612271220",
+    "token": "x",
+    "price": {
+     "raw": 154.97,
+     "formatted": "£155",
+     "pricingOptionId": "x"
+    },
+    "legs": [
+     {
+      "id": "17567-2612180615--31915-0-16574-2612180705",
+      "origin": {
+       "id": "VNO",
+       "entityId": "95673717",
+       "name": "Vilnius",
+       "displayCode": "VNO",
+       "city": "Vilnius",
+       "country": "Lithuania",
+       "isHighlighted": false
+      },
+      "destination": {
+       "id": "STN",
+       "entityId": "95565052",
+       "name": "London Stansted",
+       "displayCode": "STN",
+       "city": "London",
+       "country": "United Kingdom",
+       "isHighlighted": true
+      },
+      "durationInMinutes": 170,
+      "stopCount": 0,
+      "isSmallestStops": false,
+      "departure": "2026-12-18T06:15:00",
+      "arrival": "2026-12-18T07:05:00",
+      "timeDeltaInDays": 0,
+      "carriers": {
+       "marketing": [
+        {
+         "id": -31915,
+         "alternateId": "FR",
+         "logoUrl": "https://logos.skyscnr.com/images/airlines/favicon/FR.png",
+         "name": "Ryanair"
+        }
+       ],
+       "operating": [
+        {
+         "id": -30821,
+         "alternateId": "JF",
+         "logoUrl": "https://logos.skyscnr.com/images/airlines/favicon/JF.png",
+         "name": "Buzz"
+        }
+       ],
+       "operationType": "not_operated"
+      },
+      "segments": [
+       {
+        "id": "17567-16574-2612180615-2612180705--31915",
+        "origin": {
+         "entityId": "95673717",
+         "flightPlaceId": "VNO",
+         "displayCode": "VNO",
+         "parent": {
+          "entityId": "27547414",
+          "flightPlaceId": "VILN",
+          "displayCode": "VNO",
+          "name": "Vilnius",
+          "type": "City"
+         },
+         "name": "Vilnius",
+         "type": "Airport",
+         "country": "Lithuania",
+         "countryId": "LT"
+        },
+        "destination": {
+         "entityId": "95565052",
+         "flightPlaceId": "STN",
+         "displayCode": "STN",
+         "parent": {
+          "entityId": "27544008",
+          "flightPlaceId": "LOND",
+          "displayCode": "LON",
+          "name": "London",
+          "type": "City"
+         },
+         "name": "London Stansted",
+         "type": "Airport",
+         "country": "United Kingdom",
+         "countryId": "UK"
+        },
+        "departure": "2026-12-18T06:15:00",
+        "arrival": "2026-12-18T07:05:00",
+        "durationInMinutes": 170,
+        "flightNumber": "542",
+        "marketingCarrier": {
+         "id": -31915,
+         "name": "Ryanair",
+         "alternateId": "FR",
+         "allianceId": 0,
+         "displayCode": "FR"
+        },
+        "operatingCarrier": {
+         "id": -30821,
+         "name": "Buzz",
+         "alternateId": "JF",
+         "allianceId": 0,
+         "displayCode": "RR"
+        },
+        "transport": {
+         "mode": "TRANSPORT_MODE_FLIGHT"
+        }
+       }
+      ]
+     },
+     {
+      "id": "13771-2612270735--31669-0-17567-2612271220",
+      "origin": {
+       "id": "LTN",
+       "entityId": "95565053",
+       "name": "London Luton",
+       "displayCode": "LTN",
+       "city": "London",
+       "country": "United Kingdom",
+       "isHighlighted": true
+      },
+      "destination": {
+       "id": "VNO",
+       "entityId": "95673717",
+       "name": "Vilnius",
+       "displayCode": "VNO",
+       "city": "Vilnius",
+       "country": "Lithuania",
+       "isHighlighted": false
+      },
+      "durationInMinutes": 165,
+      "stopCount": 0,
+      "isSmallestStops": false,
+      "departure": "2026-12-27T07:35:00",
+      "arrival": "2026-12-27T12:20:00",
+      "timeDeltaInDays": 0,
+      "carriers": {
+       "marketing": [
+        {
+         "id": -31669,
+         "alternateId": "WZ",
+         "logoUrl": "https://logos.skyscnr.com/images/airlines/favicon/WZ.png",
+         "name": "Wizz Air"
+        }
+       ],
+       "operationType": "fully_operated"
+      },
+      "segments": [
+       {
+        "id": "13771-17567-2612270735-2612271220--31669",
+        "origin": {
+         "entityId": "95565053",
+         "flightPlaceId": "LTN",
+         "displayCode": "LTN",
+         "parent": {
+          "entityId": "27544008",
+          "flightPlaceId": "LOND",
+          "displayCode": "LON",
+          "name": "London",
+          "type": "City"
+         },
+         "name": "London Luton",
+         "type": "Airport",
+         "country": "United Kingdom",
+         "countryId": "UK"
+        },
+        "destination": {
+         "entityId": "95673717",
+         "flightPlaceId": "VNO",
+         "displayCode": "VNO",
+         "parent": {
+          "entityId": "27547414",
+          "flightPlaceId": "VILN",
+          "displayCode": "VNO",
+          "name": "Vilnius",
+          "type": "City"
+         },
+         "name": "Vilnius",
+         "type": "Airport",
+         "country": "Lithuania",
+         "countryId": "LT"
+        },
+        "departure": "2026-12-27T07:35:00",
+        "arrival": "2026-12-27T12:20:00",
+        "durationInMinutes": 165,
+        "flightNumber": "1902",
+        "marketingCarrier": {
+         "id": -31669,
+         "name": "Wizz Air",
+         "alternateId": "WZ",
+         "allianceId": 0,
+         "displayCode": "W6"
+        },
+        "operatingCarrier": {
+         "id": -31669,
+         "name": "Wizz Air",
+         "alternateId": "WZ",
+         "allianceId": 0,
+         "displayCode": "W6"
+        },
+        "transport": {
+         "mode": "TRANSPORT_MODE_FLIGHT"
+        }
+       }
+      ]
+     }
+    ],
+    "isSelfTransfer": false,
+    "isProtectedSelfTransfer": false,
+    "farePolicy": {
+     "isChangeAllowed": false,
+     "isPartiallyChangeable": false,
+     "isCancellationAllowed": false,
+     "isPartiallyRefundable": false
+    },
+    "eco": {
+     "ecoContenderDelta": 21.980154
+    },
+    "emissions": {
+     "emissionsKg": 252.15,
+     "emissionsDeltaPercentage": -21.980154,
+     "typicalEmissionsKg": 323.187,
+     "emissionsDeltaKg": -71.03702,
+     "emissionsLevel": "lower"
+    },
+    "fareAttributes": {},
+    "tags": [
+     "cheapest",
+     "second_shortest"
+    ],
+    "isMashUp": true,
+    "hasFlexibleOptions": false,
+    "score": 0.791023
+   }
+  ],
+  "buckets": []
+ }
+}

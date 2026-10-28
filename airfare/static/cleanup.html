@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="__LANG__">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AirFare</title>
+<link rel="icon" href="__FAVICON__">
+<style>
+/*TOKENS*/
+/*NAV_CSS*/
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--paper); }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.55 var(--text); }
+body::before { content: ""; display: block; height: 6px; background: var(--stripe); }
+main { max-width: 1080px; margin: 0 auto; padding: 24px 16px 120px; }
+a { color: var(--sky); }
+input, select, button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+
+.lead { display: flex; gap: 14px; align-items: flex-start; max-width: 62ch; margin: 4px 0 6px; }
+.lead .ico { width: 34px; height: 34px; color: var(--sky); flex: none; }
+.lead p { margin: 0; font: 500 19px/1.35 var(--display); }
+.lead small { display: block; font: 14px/1.5 var(--text); color: var(--muted); margin-top: 4px; }
+
+.block { padding: 30px 0 4px; border-top: 1px solid var(--line); margin-top: 24px; }
+.split { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 8px 36px; }
+.block-head { display: flex; gap: 12px; align-items: flex-start; }
+.block-head .ico { width: 26px; height: 26px; color: var(--sky); flex: none; margin-top: 1px; }
+h2 { font: 600 22px/1.15 var(--display); margin: 0; }
+.block-head p { margin: 4px 0 0; color: var(--muted); font-size: 14px; max-width: 46ch; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; min-width: 0; }
+@media (max-width: 760px) { .split { grid-template-columns: 1fr; } }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.f { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); min-width: 0; }
+input[type=number], select { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+  width: 100%; min-width: 0; color: var(--ink); }
+.check { display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--ink); cursor: pointer; }
+input[type=checkbox] { accent-color: var(--sky); width: 16px; height: 16px; }
+.stat { font: 600 15px var(--display); color: var(--ink); }
+.muted { color: var(--muted); font-size: 13px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  border-radius: 8px; padding: 7px 14px; cursor: pointer; font-size: 15px; }
+.btn:hover:not(:disabled) { border-color: var(--sky); color: var(--sky); }
+.btn.danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 35%, var(--line)); }
+.btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--bad) 8%, var(--card)); color: var(--bad); border-color: var(--bad); }
+.btn.primary { background: var(--sky); color: var(--sky-ink); border-color: var(--sky); }
+button:disabled { opacity: .45; cursor: default; }
+
+.list { display: grid; gap: 2px; }
+.list label { display: flex; gap: 10px; align-items: center; padding: 7px 4px; border-bottom: 1px solid var(--soft); cursor: pointer; }
+.list label:last-child { border-bottom: 0; }
+.list .name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.badge { font-size: 12px; border-radius: 999px; padding: 2px 9px; background: var(--soft); color: var(--muted); white-space: nowrap; }
+.badge.now { background: var(--sky-soft); color: var(--sky); }
+.empty { color: var(--muted); font-size: 14px; }
+.danger-zone .panel { border-color: color-mix(in srgb, var(--bad) 30%, var(--line)); }
+
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: color-mix(in srgb, var(--card) 92%, transparent);
+  backdrop-filter: blur(8px); border-top: 1px solid var(--line); }
+.bar-in { max-width: 1080px; margin: 0 auto; padding: 12px 16px; font-size: 14px; color: var(--muted); min-height: 46px; }
+.bar-in.good { color: var(--ok); } .bar-in.err { color: var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <header><!--TOP:cleanup--></header>
+  <div class="lead"><!--ICON:broom-->
+    <p><span data-i18n>Clear out what AirFare kept from past checks.</span>
+      <small data-i18n>Each button says how much it will delete before you press it. Settings and API keys are never touched here.</small></p>
+  </div>
+
+  <section class="block split" aria-labelledby="h-records">
+    <div class="block-head"><!--ICON:trend-->
+      <div><h2 id="h-records" data-i18n>Price history</h2><p data-i18n>Every price AirFare recorded, as shown on the Price history page.</p></div>
+    </div>
+    <div class="panel">
+      <p class="muted" id="rec-summary"></p>
+      <div class="grid" style="margin-top:10px">
+        <label class="f"><span data-i18n>Route</span><select id="rec-route"></select></label>
+        <label class="f"><span data-i18n>Source</span><select id="rec-source"></select></label>
+        <label class="f"><span data-i18n>Seen more than … days ago</span><input type="number" id="rec-days" min="1" max="3650" placeholder="30"></label>
+      </div>
+      <label class="check" style="margin-top:12px"><input type="checkbox" id="rec-past"> <span data-i18n>Only trips whose departure date has passed</span></label>
+      <div class="actions"><button class="btn danger" id="rec-go" disabled></button></div>
+      <p class="muted" style="margin-top:10px" data-i18n>Deleting price history doesn't change alerts; reset those under Alert references.</p>
+    </div>
+  </section>
+
+  <section class="block split" aria-labelledby="h-dash">
+    <div class="block-head"><!--ICON:ticket-->
+      <div><h2 id="h-dash" data-i18n>Dashboard</h2><p data-i18n>Routes on the dashboard. An earlier route keeps its last check on its own tab until you remove it.</p></div>
+    </div>
+    <div class="panel">
+      <div class="list" id="dash-list"></div>
+      <div class="actions">
+        <button class="btn danger" id="dash-go" disabled></button>
+        <button class="btn danger" id="dash-earlier" disabled></button>
+      </div>
+    </div>
+  </section>
+
+  <section class="block split" aria-labelledby="h-alerts">
+    <div class="block-head"><!--ICON:bell-->
+      <div><h2 id="h-alerts" data-i18n>Alert references</h2><p data-i18n>The prices each alert kind compares with. Resetting starts every kind again from the next check's prices, as if the route were new.</p></div>
+    </div>
+    <div class="panel">
+      <div class="grid"><label class="f"><span data-i18n>Route</span><select id="alert-route"></select></label></div>
+      <div class="actions">
+        <button class="btn danger" id="alert-go" data-i18n>Reset this route's alerts</button>
+        <button class="btn danger" id="alert-all" data-i18n>Reset every route's alerts</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="block split" aria-labelledby="h-lookups">
+    <div class="block-head"><!--ICON:radar-->
+      <div><h2 id="h-lookups" data-i18n>Lowest-price lookups</h2><p data-i18n>Results of "Search the lowest price history" on the Price history page.</p></div>
+    </div>
+    <div class="panel">
+      <div class="grid">
+        <label class="f"><span data-i18n>Route</span><select id="lk-route"></select></label>
+        <label class="f"><span data-i18n>Older than … days</span><input type="number" id="lk-days" min="1" max="3650"></label>
+      </div>
+      <div class="actions"><button class="btn danger" id="lk-go" disabled></button></div>
+    </div>
+  </section>
+
+  <section class="block split" aria-labelledby="h-files">
+    <div class="block-head"><!--ICON:folder-->
+      <div><h2 id="h-files" data-i18n>Check reports and log</h2><p data-i18n>The price document and analysis saved at each check, and AirFare's log. The latest check's reports always stay.</p></div>
+    </div>
+    <div class="panel">
+      <p class="muted" id="rep-summary"></p>
+      <div class="grid" style="margin-top:10px"><label class="f"><span data-i18n>Older than … days</span><input type="number" id="rep-days" min="1" max="3650" value="30"></label></div>
+      <div class="actions">
+        <button class="btn danger" id="rep-go" disabled></button>
+        <button class="btn" id="log-go"></button>
+      </div>
+    </div>
+  </section>
+
+  <section class="block split" aria-labelledby="h-conv">
+    <div class="block-head"><!--ICON:chat-->
+      <div><h2 id="h-conv" data-i18n>Analyst conversations</h2><p data-i18n>Each analyst continues one conversation from check to check. Start fresh if its answers drift; your price history still reaches it.</p></div>
+    </div>
+    <div class="panel">
+      <div class="list" id="conv-list"></div>
+      <div class="actions"><button class="btn danger" id="conv-go" disabled data-i18n>Start fresh conversations</button></div>
+      <p class="muted" style="margin-top:10px" data-i18n>DeepSeek and OpenAI API conversations are stored by AirFare and are deleted. Claude and ChatGPT keep their own copy in their apps.</p>
+    </div>
+  </section>
+
+  <section class="block split" aria-labelledby="h-auto">
+    <div class="block-head"><!--ICON:clock-->
+      <div><h2 id="h-auto" data-i18n>Automatic clean-up</h2><p data-i18n>After every check, AirFare removes what's older than this. Leave a field empty to keep everything.</p></div>
+    </div>
+    <div class="panel">
+      <div class="grid">
+        <label class="f"><span data-i18n>Keep price history for (days)</span><input type="number" id="auto-records" min="1" max="3650"></label>
+        <label class="f"><span data-i18n>Keep check reports for (days)</span><input type="number" id="auto-reports" min="1" max="3650"></label>
+        <label class="f"><span data-i18n>Keep earlier dashboard routes for (days)</span><input type="number" id="auto-dashboard" min="1" max="3650"></label>
+      </div>
+      <div class="actions"><button class="btn primary" id="auto-go" data-i18n>Save automatic clean-up</button></div>
+    </div>
+  </section>
+
+  <section class="block split danger-zone" aria-labelledby="h-all">
+    <div class="block-head"><!--ICON:warning-->
+      <div><h2 id="h-all" data-i18n>Start over</h2><p data-i18n>Everything AirFare learned from checks: price history, lookups, dashboard, alert references and reports.</p></div>
+    </div>
+    <div class="panel">
+      <p class="muted" style="margin-top:0" data-i18n>Your routes, settings, API keys and analyst accounts stay.</p>
+      <div class="actions"><button class="btn danger" id="all-go" data-i18n>Delete all check history</button></div>
+    </div>
+  </section>
+</main>
+
+<div class="bar"><div class="bar-in" id="msg" role="status" aria-live="polite"></div></div>
+
+<!--I18N-->
+<script>
+const H = {"Content-Type": "application/json", "X-AirFare": "1"};
+const $ = (s, el = document) => el.querySelector(s);
+const TEXTS = JSON.parse(($("#i18n") || {}).textContent || "{}");
+let LANG = document.documentElement.lang || "en", S = null, lastMsg = null;
+const LOCALE = {en: "en-GB", es: "es-ES", ru: "ru-RU"};
+const NAMES = {claude: "Claude", deepseek: "DeepSeek", openai: "ChatGPT (API)", chatgpt: "ChatGPT"};
+const fill = (s, p) => String(s).replace(/\{(\w+)\}/g, (m, k) => (p && k in p ? p[k] : m));
+const t = (text, p) => fill(((TEXTS[LANG] || {})[text]) || text, p);
+function tn(n, forms, p) {
+  const o = (((TEXTS[LANG] || {})[forms]) || forms).split("|");
+  let i = n === 1 ? 0 : 1;
+  if (LANG === "ru") i = n % 10 === 1 && n % 100 !== 11 ? 0 : (n % 10 >= 2 && n % 10 <= 4 && !(n % 100 >= 12 && n % 100 <= 14) ? 1 : 2);
+  return fill(o[Math.min(i, o.length - 1)], {n, ...p});
+}
+function translateStatic() {
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    if (!el.dataset.en) el.dataset.en = el.textContent.replace(/\s+/g, " ").trim();
+    el.textContent = t(el.dataset.en);
+  });
+}
+const day = iso => { const d = new Date(String(iso || "").slice(0, 10) + "T12:00:00"); return iso && !isNaN(d) ? d.toLocaleDateString(LOCALE[LANG], {day: "numeric", month: "short", year: "numeric"}) : "—"; };
+const size = b => !b ? "0 KB" : b >= 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1024)) + " KB";
+
+function msg(text, kind = "", key = null, params = null) {
+  lastMsg = key ? [key, kind, params] : null;
+  const m = $("#msg"); m.className = "bar-in " + kind; m.textContent = text;
+}
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {headers: H} : {method: "POST", headers: H, body: JSON.stringify(body)});
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error ? t(data.error) : t("Request failed ({status})", {status: r.status}));
+  return data;
+}
+
+function routeLabel(r) {
+  return r.name + (r.tracked ? "" : " (" + t("no longer tracked") + ")");
+}
+function fillSelect(sel, items, first) {
+  const keep = sel.value;
+  sel.innerHTML = "";
+  if (first) sel.add(new Option(first, ""));
+  for (const [value, label] of items) sel.add(new Option(label, value));
+  if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
+}
+
+function render() {
+  if (!S) return;
+  const recs = S.records;
+  $("#rec-summary").textContent = recs.total
+    ? tn(recs.total, "{n} record|{n} records") + " · " + t("since {when}", {when: day(recs.oldest)}) + " · "
+      + tn(recs.past_trips, "{n} for a trip that already happened|{n} for trips that already happened")
+    : t("No price history yet.");
+  fillSelect($("#rec-route"), S.routes.filter(r => r.records).map(r => [r.id, `${routeLabel(r)} · ${r.records}`]), t("All routes"));
+  fillSelect($("#rec-source"), Object.entries(recs.sources).map(([s, n]) => [s, `${s} · ${n}`]), t("All sources"));
+  fillSelect($("#alert-route"), S.routes.filter(r => r.alerts).map(r => [r.id, routeLabel(r)]), null);
+  fillSelect($("#lk-route"), S.routes.filter(r => r.lookups).map(r => [r.id, `${routeLabel(r)} · ${r.lookups}`]), t("All routes"));
+  $("#alert-go").disabled = !$("#alert-route").value;
+  $("#alert-all").disabled = !S.routes.some(r => r.alerts);
+
+  const dash = S.routes.filter(r => r.dashboard);
+  $("#dash-list").innerHTML = "";
+  if (!dash.length) $("#dash-list").appendChild(note(t("The dashboard is empty.")));
+  for (const r of dash) {
+    const row = document.createElement("label");
+    row.innerHTML = `<input type="checkbox" value=""><span class="name"></span><span class="badge"></span>`;
+    $("input", row).value = r.id;
+    $(".name", row).textContent = routeLabel(r);
+    $(".badge", row).textContent = r.latest ? t("in the latest check") : t("earlier, checked {when}", {when: day(r.checked)});
+    $(".badge", row).classList.toggle("now", r.latest);
+    $("input", row).addEventListener("change", renderDash);
+    $("#dash-list").appendChild(row);
+  }
+  renderDash();
+
+  $("#rep-summary").textContent = tn(S.reports.files, "{n} check report|{n} check reports") + " · " + size(S.reports.bytes);
+  $("#log-go").textContent = t("Clear the log ({size})", {size: size(S.logs.bytes)});
+  $("#log-go").disabled = !S.logs.bytes;
+
+  const conv = Object.entries(S.conversations).filter(([, on]) => on);
+  $("#conv-list").innerHTML = "";
+  if (!conv.length) $("#conv-list").appendChild(note(t("No conversations yet.")));
+  for (const [p] of conv) {
+    const row = document.createElement("label");
+    row.innerHTML = `<input type="checkbox" checked><span class="name"></span>`;
+    $("input", row).value = p;
+    $(".name", row).textContent = NAMES[p] || p;
+    $("input", row).addEventListener("change", () => { $("#conv-go").disabled = !chosen("#conv-list").length; });
+    $("#conv-list").appendChild(row);
+  }
+  $("#conv-go").disabled = !conv.length;
+
+  const a = S.auto || {};
+  $("#auto-records").value = a.records_days ?? "";
+  $("#auto-reports").value = a.reports_days ?? "";
+  $("#auto-dashboard").value = a.dashboard_days ?? "";
+  previewRecords(); previewLookups(); previewReports();
+}
+function note(text) { const p = document.createElement("p"); p.className = "empty"; p.textContent = text; return p; }
+const chosen = list => [...document.querySelectorAll(list + " input:checked")].map(i => i.value);
+function renderDash() {
+  const n = chosen("#dash-list").length, earlier = S.routes.filter(r => r.dashboard && !r.latest).length;
+  $("#dash-go").textContent = n ? tn(n, "Remove {n} route from the dashboard|Remove {n} routes from the dashboard")
+    : t("Tick the routes to remove");
+  $("#dash-go").disabled = !n;
+  $("#dash-earlier").textContent = earlier ? tn(earlier, "Remove the {n} earlier route|Remove all {n} earlier routes")
+    : t("No earlier routes");
+  $("#dash-earlier").disabled = !earlier;
+}
+
+// What each button would delete, asked of AirFare as a dry run.
+const recOpts = () => ({route_id: $("#rec-route").value, source: $("#rec-source").value,
+                        older_than_days: $("#rec-days").value, past_trips: $("#rec-past").checked});
+const lkOpts = () => ({route_id: $("#lk-route").value, older_than_days: $("#lk-days").value, everything: !$("#lk-route").value && !$("#lk-days").value});
+let timers = {};
+function later(key, fn) { clearTimeout(timers[key]); timers[key] = setTimeout(fn, 250); }
+async function count(action, opts) {
+  try { return (await api("/api/cleanup", {...opts, action, dry_run: true})).count; } catch (e) { return null; }
+}
+async function previewRecords() {
+  const o = recOpts(), b = $("#rec-go");
+  if (!o.route_id && !o.source && !o.older_than_days && !o.past_trips) {
+    b.textContent = t("Pick which records to delete"); b.disabled = true; return;
+  }
+  const n = await count("records", o);
+  b.textContent = n === null ? t("Pick which records to delete") : tn(n, "Delete {n} record|Delete {n} records");
+  b.disabled = !n;
+}
+async function previewLookups() {
+  const n = await count("lookups", lkOpts()), b = $("#lk-go");
+  b.textContent = tn(n || 0, "Delete {n} lookup|Delete {n} lookups"); b.disabled = !n;
+}
+async function previewReports() {
+  const n = await count("reports", {older_than_days: $("#rep-days").value}), b = $("#rep-go");
+  b.textContent = tn(n || 0, "Delete {n} report|Delete {n} reports"); b.disabled = !n;
+}
+
+// Ask AirFare again right before deleting (a check may have run since the page loaded), say the number in the
+// question, and send it along: AirFare refuses if what it would delete has changed in the meantime.
+async function act(action, opts, question) {
+  const counted = action !== "logs";
+  const n = counted ? await count(action, opts) : null;
+  if (counted && !n) { msg(t("Nothing to delete any more."), "", "Nothing to delete any more."); refresh(); return; }
+  if (!confirm(question + (counted ? "\n\n" + tn(n, "{n} item will be deleted.|{n} items will be deleted.") : ""))) return;
+  try {
+    const d = await api("/api/cleanup", {...opts, action, ...(counted ? {expect: n} : {})});
+    S = d.summary; render(); msg(d.message, "good");
+  } catch (e) { msg(e.message, "err"); refresh(); }
+}
+function refresh() { api("/api/cleanup").then(d => { S = d; render(); }).catch(() => {}); }
+
+$("#rec-go").onclick = () => act("records", recOpts(), t("Delete these price records? This can't be undone."));
+["#rec-route", "#rec-source", "#rec-past"].forEach(s => $(s).addEventListener("change", previewRecords));
+$("#rec-days").addEventListener("input", () => later("rec", previewRecords));
+$("#dash-go").onclick = () => act("dashboard", {route_ids: chosen("#dash-list")}, t("Remove these routes from the dashboard? Their price history stays."));
+$("#dash-earlier").onclick = () => act("dashboard", {earlier: true}, t("Remove every earlier route from the dashboard? Their price history stays."));
+$("#alert-route").addEventListener("change", () => { $("#alert-go").disabled = !$("#alert-route").value; });
+$("#alert-go").onclick = () => act("alerts", {route_id: $("#alert-route").value}, t("Reset this route's alerts? Every kind starts again from the next check's prices."));
+$("#alert-all").onclick = () => act("alerts", {everything: true}, t("Reset the alerts of every route? Every kind starts again from the next check's prices."));
+$("#lk-go").onclick = () => act("lookups", lkOpts(), t("Delete these lookup results? This can't be undone."));
+$("#lk-route").addEventListener("change", previewLookups);
+$("#lk-days").addEventListener("input", () => later("lk", previewLookups));
+$("#rep-go").onclick = () => act("reports", {older_than_days: $("#rep-days").value}, t("Delete these check reports? This can't be undone."));
+$("#rep-days").addEventListener("input", () => later("rep", previewReports));
+$("#log-go").onclick = () => act("logs", {}, t("Clear AirFare's log?"));
+$("#conv-go").onclick = () => act("conversations", {providers: chosen("#conv-list")}, t("Start fresh conversations with the analysts you picked?"));
+$("#auto-go").onclick = async () => {
+  try {
+    const d = await api("/api/cleanup/auto", {records_days: $("#auto-records").value, reports_days: $("#auto-reports").value,
+                                               dashboard_days: $("#auto-dashboard").value});
+    S = d.summary; render(); msg(t("Automatic clean-up saved."), "good", "Automatic clean-up saved.");
+  } catch (e) { msg(e.message, "err"); }
+};
+$("#all-go").onclick = () => act("everything", {}, t("Delete all check history? Price history, lookups, dashboard, alert references and reports are deleted for good. Your routes, settings and keys stay."));
+
+window.airfareLanguage = lang => {          // the EN · ES · RU links in the top bar
+  const ticked = new Set(chosen("#dash-list")), unticked = [...document.querySelectorAll("#conv-list input:not(:checked)")].map(i => i.value);
+  const typed = ["#auto-records", "#auto-reports", "#auto-dashboard"].map(s => $(s).value);
+  LANG = lang; translateStatic(); render();
+  document.querySelectorAll("#dash-list input").forEach(i => { i.checked = ticked.has(i.value); });
+  document.querySelectorAll("#conv-list input").forEach(i => { if (unticked.includes(i.value)) i.checked = false; });
+  ["#auto-records", "#auto-reports", "#auto-dashboard"].forEach((s, i) => { $(s).value = typed[i]; });
+  renderDash(); $("#conv-go").disabled = !chosen("#conv-list").length;
+  if (lastMsg) msg(t(lastMsg[0], lastMsg[2]), lastMsg[1], lastMsg[0], lastMsg[2]);
+};
+translateStatic();
+api("/api/cleanup").then(d => { S = d; render(); }).catch(e => msg(e.message, "err"));
+</script>
+<!--NAV_SCRIPT-->
+</body>
+</html>

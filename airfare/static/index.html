@@ -1,0 +1,1298 @@
+<!doctype html>
+<html lang="__LANG__">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AirFare</title>
+<link rel="icon" href="__FAVICON__">
+<style>
+/*TOKENS*/
+/*NAV_CSS*/
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--paper); }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.55 var(--text); }
+body::before { content: ""; display: block; height: 6px; background: var(--stripe); }
+main { max-width: 1080px; margin: 0 auto; padding: 24px 16px 150px; }
+a { color: var(--sky); }
+input, select, button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+
+/* Under the top bar: one line about what AirFare does, and the flight-path drawing */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 0 40px; align-items: center; padding: 6px 0 4px; }
+.tagline { font: 500 26px/1.25 var(--display); margin: 0; max-width: 24ch; }
+.status { font-size: 13px; color: var(--muted); margin: 14px 0 0; }
+.sky { width: 100%; height: auto; color: var(--muted); }
+.sky .route-line { animation: march 1.8s cubic-bezier(.2, .7, .2, 1) both; }
+.sky .fly { animation: fly 1.8s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes march { from { stroke-dashoffset: 66; } }
+@keyframes fly { from { transform: translate(-64px, 12px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sky .route-line, .sky .fly { animation: none; } }
+
+/* Sections: heading with an icon on the left, the settings on the right */
+.block { padding: 34px 0 6px; border-top: 1px solid var(--line); margin-top: 26px; }
+.block-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 16px; }
+.block-head .ico { width: 26px; height: 26px; color: var(--sky); flex: none; margin-top: 1px; }
+h2 { font: 600 22px/1.15 var(--display); margin: 0; letter-spacing: .005em; }
+.block-head p { margin: 4px 0 0; color: var(--muted); font-size: 14px; max-width: 46ch; }
+.split { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 8px 36px; }
+.split .block-head { margin-bottom: 0; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; min-width: 0; }
+@media (max-width: 760px) { .split { grid-template-columns: 1fr; } .hero { grid-template-columns: 1fr; } .sky { max-width: 460px; margin-top: 18px; } }
+
+/* Route cards are boarding passes: the stub shows the airport codes, the ticket holds the details */
+.pass { position: relative; display: grid; grid-template-columns: 150px minmax(0, 1fr); background: var(--card);
+        border: 1px solid var(--line); border-radius: 16px; margin-bottom: 16px; }
+.pass::before, .pass::after { content: ""; position: absolute; left: 150px; width: 20px; height: 20px; margin-left: -10px;
+        border-radius: 50%; background: var(--paper); border: 1px solid var(--line); }
+.pass::before { top: -11px; clip-path: inset(50% 0 0 0); }
+.pass::after { bottom: -11px; clip-path: inset(0 0 50% 0); }
+.stub { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px; padding: 30px 10px 20px;
+        background: var(--sky-soft); border-radius: 15px 0 0 15px; border-right: 2px dashed var(--line); text-align: center; }
+.iata { font: 600 30px/1.05 var(--display); letter-spacing: .05em; overflow-wrap: anywhere; }
+.stub-plane { width: 22px; height: 22px; fill: var(--sky); transform: rotate(90deg); margin: 4px 0; }
+.stub-meta { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.stub.link .stub-plane, .stub.link .to { display: none; }
+.ticket { padding: 16px 20px 18px; min-width: 0; }
+.pass.off .stub { filter: grayscale(1); opacity: .55; }
+.pass.off .ticket > :not(.card-head) { opacity: .6; }
+@media (max-width: 640px) {
+  .pass { grid-template-columns: 1fr; }
+  .pass::before, .pass::after { display: none; }
+  .stub { flex-direction: row; gap: 10px; border-radius: 15px 15px 0 0; border-right: 0; border-bottom: 2px dashed var(--line); padding: 12px; }
+  .stub-plane { transform: none; margin: 0; }
+  .stub-meta { margin: 0 0 0 auto; }
+}
+
+.card-head { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+.card-head input[type=text] { flex: 1; font-weight: 600; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.f { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); min-width: 0; }
+input[type=text], input[type=date], input[type=number], input[type=url], input[type=password], select {
+  background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; min-width: 0; width: 100%; color: var(--ink); }
+input:hover, select:hover { border-color: color-mix(in srgb, var(--sky) 40%, var(--line)); }
+.code { text-transform: uppercase; letter-spacing: .08em; font: 600 16px var(--display); }
+.pair { display: flex; gap: 6px; align-items: center; }
+.seg { display: inline-flex; align-self: flex-start; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--paper); }
+.seg button { border: 0; background: transparent; padding: 7px 13px; cursor: pointer; }
+.seg button.on { background: var(--sky); color: var(--sky-ink); }
+.check { display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--ink); padding-top: 22px; cursor: pointer; }
+input[type=checkbox], input[type=radio] { accent-color: var(--sky); width: 16px; height: 16px; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--card); color: var(--ink);
+       border-radius: 8px; padding: 7px 14px; cursor: pointer; font-size: 15px; text-decoration: none; white-space: nowrap; }
+.btn:hover { border-color: var(--sky); color: var(--sky); }
+button.primary { background: var(--sky); color: var(--sky-ink); border-color: var(--sky); }
+button.primary:hover { filter: brightness(1.08); color: var(--sky-ink); }
+button.ghost { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 4px 8px; font-size: 18px; border-radius: 6px; }
+button.ghost:hover { color: var(--ink); background: var(--soft); }
+button:disabled { opacity: .5; cursor: default; }
+button.small { padding: 2px 10px; font-size: 13px; margin-left: 4px; }
+button.linkish { align-self: flex-start; border: 0; background: none; padding: 0; color: var(--sky); font-size: 13px; cursor: pointer; text-decoration: underline; }
+.row-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.adders { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.pages { margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 10px; }
+.pages summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+.page { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 8px 0; border-bottom: 1px solid var(--soft); font-size: 14px; }
+.page:last-child { border-bottom: 0; }
+.page .dates { font-variant-numeric: tabular-nums; }
+.page .meta { display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.page .fix { grid-column: 1 / -1; display: flex; gap: 8px; }
+.page .fix button { white-space: nowrap; }
+@media (max-width: 560px) { .page { grid-template-columns: 1fr; } .page .meta { justify-content: flex-start; } }
+.badge { font-size: 12px; border-radius: 999px; padding: 2px 9px; background: var(--soft); color: var(--muted); white-space: nowrap; }
+.badge.ok { color: var(--ok); } .badge.bad { color: var(--bad); } .badge.warn { color: var(--warn); }
+.badge.skip { text-decoration: line-through; }
+.muted { color: var(--muted); font-size: 13px; }
+.warn-text { color: var(--warn); font-size: 13px; }
+.ok-text { color: var(--ok); font-size: 13px; }
+.err-text { color: var(--bad); font-size: 13px; }
+
+.opt { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; cursor: pointer; }
+.opt input { margin-top: 4px; flex: none; }
+.sub-block { border-top: 1px dashed var(--line); margin-top: 14px; padding-top: 4px; }
+.sub-block h3 { font: 600 16px var(--display); margin: 12px 0 4px; }
+.tag { font: 500 12px var(--text); color: var(--muted); background: var(--soft); border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: 2px; }
+.steps { margin: 8px 0 0; padding-left: 20px; } .steps li { margin: 6px 0; }
+code { background: var(--soft); border-radius: 5px; padding: 1px 6px; font-size: 13px; word-break: break-all; }
+.inline-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.keyrow { display: flex; gap: 8px; align-items: center; }
+.keyrow input { flex: 1; }
+
+/* Currency: four big buttons */
+.money { display: flex; gap: 8px; flex-wrap: wrap; }
+.money label { position: relative; display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 10px;
+               padding: 8px 14px; cursor: pointer; background: var(--paper); min-width: 128px; }
+.money label:has(input:checked) { border-color: var(--sky); background: var(--sky-soft); }
+.money input { position: absolute; opacity: 0; pointer-events: none; }
+.money label:has(input:focus-visible) { outline: 2px solid var(--sky); outline-offset: 2px; }
+.money .sign { font: 600 24px/1 var(--display); min-width: 22px; text-align: center; color: var(--sky); }
+.money .name { font-size: 14px; line-height: 1.2; } .money .name small { display: block; color: var(--muted); font-size: 12px; }
+.money .name select { display: block; margin-top: 3px; padding: 2px 4px; font-size: 13px; width: auto; }
+
+/* Price alerts: one row per kind */
+.kind { padding: 12px 0; border-bottom: 1px dashed var(--line); }
+.kind:first-child { padding-top: 2px; }
+.kind .nums { display: flex; gap: 8px 24px; flex-wrap: wrap; margin: 8px 0 0 26px; }
+.kind .what { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.kind .what input { margin-top: 4px; flex: none; }
+.kind .what strong { font: 600 16px var(--display); }
+.kind .what span.muted { display: block; }
+.kind .num { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.kind .num input { width: 76px; }
+.kind.off .num { opacity: .5; }
+.filters { display: grid; gap: 8px; margin-top: 14px; }
+.filters .num { display: flex; align-items: center; gap: 8px; font-size: 14px; flex-wrap: wrap; }
+.filters .num input { width: 76px; }
+
+/* First visit */
+.intro { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 18px; align-items: center; background: var(--card);
+         border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; margin-bottom: 18px; }
+.intro svg { width: 100%; height: auto; color: var(--muted); }
+.intro p { margin: 4px 0; }
+@media (max-width: 560px) { .intro { grid-template-columns: 1fr; } .intro svg { max-width: 140px; } }
+
+.analysis { overflow-x: auto; }
+.analysis table { border-collapse: collapse; font-size: 14px; }
+.analysis th, .analysis td { border-bottom: 1px solid var(--line); padding: 4px 8px; text-align: left; }
+.analysis h1, .analysis h2, .analysis h3 { font-family: var(--display); font-size: 18px; }
+
+/* Action bar */
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: color-mix(in srgb, var(--card) 92%, transparent);
+       backdrop-filter: blur(8px); border-top: 1px solid var(--line); }
+.bar-in { max-width: 1080px; margin: 0 auto; padding: 12px 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.bar .msg { flex: 1 1 220px; font-size: 14px; color: var(--muted); min-width: 0; }
+.bar .msg.err { color: var(--bad); } .bar .msg.good { color: var(--ok); }
+.spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--line); border-top-color: var(--sky);
+           border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -1px; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <!--TOP:settings-->
+    <div class="hero">
+      <div>
+        <p class="tagline" data-i18n>Watches the flights you choose and tells you when one gets cheaper.</p>
+        <p class="status" id="session">…</p>
+      </div>
+      <!--SKY-->
+    </div>
+  </header>
+
+  <section class="block" aria-labelledby="h-flights">
+    <div class="block-head"><!--ICON:ticket-->
+      <div><h2 id="h-flights" data-i18n>Flights to track</h2>
+        <p data-i18n>Airport or city codes, and an exact date or a range of dates.</p></div>
+    </div>
+    <div class="intro" id="intro" hidden>
+      <svg viewBox="0 0 130 80" aria-hidden="true">
+        <path d="M6 70C26 76 38 50 56 54s30 22 40-6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="1 6" stroke-linecap="round"/>
+        <path d="M86 32L124 10 104 40z" fill="var(--sky)"/>
+        <path d="M104 40L124 10 108 54z" fill="var(--sky-soft)" stroke="var(--sky)" stroke-width="1.4" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <p data-i18n-html="html:welcome"><strong>Welcome.</strong> Add the flights you want to watch. Use airport codes (LHR, BCN) or Skyscanner city codes (LOND, NYCA), and pick an exact date or a range for flexible dates.</p>
+        <p data-i18n-html="html:welcome2">Then choose your price sources and AI analyst below, press <strong>Save</strong>, and <strong>Test links</strong> to see the first prices. API keys can be saved on their own with their <strong>Save key</strong> button.</p>
+      </div>
+    </div>
+    <div id="routes"></div>
+    <div class="adders">
+      <button class="btn" id="add-route" data-i18n>+ Add route</button>
+      <button class="btn" id="add-link" data-i18n>+ Add a Skyscanner link</button>
+    </div>
+  </section>
+
+  <section class="block split" aria-labelledby="h-sources">
+    <div class="block-head"><!--ICON:radar-->
+      <div><h2 id="h-sources" data-i18n>Price sources</h2><p data-i18n>Where AirFare reads prices. One is enough; more give a fuller picture.</p></div>
+    </div>
+    <div class="panel">
+      <p class="muted" style="margin:0 0 10px" data-i18n>Skyscanner and Aviasales are read through your own browser, page by page. Their terms of use don't allow automated visits, so tick them only if that is acceptable to you; keep the page count small and never pass the data on. Google Flights through SerpApi is an API you pay for with your own key.</p>
+      <label class="opt"><input type="checkbox" data-src="extension">
+        <span data-i18n-html="html:src-sky"><strong>Skyscanner</strong> through the AirFare extension in your everyday browser (Chrome, Edge, Brave, Opera or Firefox)</span></label>
+      <label class="opt"><input type="checkbox" data-src="aviasales">
+        <span data-i18n-html="html:src-avia"><strong>Aviasales.ru</strong> through the same extension (its prices in rubles are converted to your currency)</span></label>
+      <label class="opt"><input type="checkbox" data-src="serpapi">
+        <span data-i18n-html="html:src-serp"><strong>Google Flights</strong> through SerpApi: optional, fully in the background, needs a free API key</span></label>
+
+      <div class="sub-block" id="ext-block">
+        <h3 data-i18n>Browser extension</h3>
+        <div class="grid" style="margin:8px 0 4px">
+          <label class="f"><span data-i18n>Browser the extension runs in</span>
+            <select id="browser"></select></label>
+        </div>
+        <p class="muted" id="ext-status"></p>
+        <ol class="steps">
+          <li><span data-i18n>In that browser, open</span> <code id="ext-page">chrome://extensions</code> <button class="btn small" id="copy-ext-url" data-i18n>Copy address</button> <span data-ext="chromium" data-i18n-html="html:ext1b">and switch on <strong>Developer mode</strong> (top right).</span></li>
+          <li><span data-ext="chromium" data-i18n-html="html:ext2">Click <strong>Load unpacked</strong> and choose this folder:</span><span data-ext="firefox" data-i18n-html="html:ext2-firefox">Click <strong>Load Temporary Add-on…</strong> and choose the <code>manifest.json</code> file in this folder:</span> <code id="ext-dir"></code> <button class="btn small" id="show-ext" data-i18n>Show folder</button></li>
+          <li data-ext="firefox"><span data-i18n>Firefox removes a temporary add-on when it restarts. To keep it, sign it once at addons.mozilla.org (free, and not listed in the store) and install the signed file.</span>
+            <details class="pages"><summary data-i18n>How to sign it</summary>
+              <ol class="steps">
+                <li data-i18n-html="html:amo1">Sign in at <a href="https://addons.mozilla.org/developers/" target="_blank" rel="noopener">addons.mozilla.org/developers</a> with a Mozilla account and accept the developer agreement.</li>
+                <li data-i18n-html="html:amo2">In PowerShell, in the AirFare folder, make the upload with an add-on id of your own (it looks like an email address; nobody else may have signed it): <code>.venv\Scripts\python tools\make_firefox.py --zip --id airfare-collector@yourname.example</code>. It writes <code>dist\airfare-firefox-&lt;version&gt;.zip</code>.</li>
+                <li data-i18n-html="html:amo3">Press <strong>Submit a New Add-on</strong>, choose <strong>On your own</strong>, upload the zip, tick only <strong>Firefox</strong> and continue. Answer <strong>No</strong> to the source code question and submit.</li>
+                <li data-i18n-html="html:amo4">When the email says it is signed (usually within minutes), open the add-on under <strong>My Add-ons</strong>, then the version, and download the signed <code>.xpi</code> file.</li>
+                <li data-i18n-html="html:amo5">In Firefox, open <code>about:addons</code>, click the gear, choose <strong>Install Add-on From File…</strong>, pick the <code>.xpi</code> and press <strong>Add</strong>.</li>
+              </ol>
+              <p class="muted" data-i18n>When AirFare brings a new version of the add-on, sign it the same way with the same id, under Upload New Version on the add-on's page.</p>
+            </details></li>
+          <li data-i18n>That's it. AirFare opens your Skyscanner and Aviasales pages in a minimized browser window and closes only those tabs when it's done. If a site asks for a robot check, the window comes up so you can solve it.</li>
+        </ol>
+      </div>
+
+      <div class="sub-block" id="serp-block">
+        <h3><span data-i18n>Google Flights (SerpApi)</span><span class="tag" data-i18n>optional</span></h3>
+        <p class="muted" data-i18n>Only needed if you want Google Flights prices too. Skyscanner and Aviasales work without it.</p>
+        <div class="grid" style="margin-top:10px">
+          <div class="f" style="grid-column: span 2"><label for="serpapi_key" data-i18n>SerpApi key</label>
+            <div class="keyrow"><input type="password" id="serpapi_key" autocomplete="off">
+              <button type="button" class="btn" data-savekey="serpapi_key" data-i18n>Save key</button></div>
+            <span class="muted" data-keymsg="serpapi_key"></span>
+            <button type="button" class="linkish" data-clear="serpapi_key" hidden data-i18n>Remove saved key</button></div>
+          <div class="f"><span data-i18n>Searches left this month</span>
+            <div class="pair"><span id="serp-quota">—</span><button class="btn small" id="serp-check" data-i18n>Check</button></div></div>
+        </div>
+        <p class="muted" data-i18n-html="html:serp-help">Get a free key at <a href="https://serpapi.com/users/sign_up" target="_blank" rel="noopener">serpapi.com</a> (about 250 searches a month), then copy it from <a href="https://serpapi.com/manage-api-key" target="_blank" rel="noopener">Api Key</a>. Each date combination uses one search per check.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="block split" aria-labelledby="h-money">
+    <div class="block-head"><!--ICON:coin-->
+      <div><h2 id="h-money" data-i18n>Currency</h2><p data-i18n>Every price is compared, alerted and shown in this currency. Prices a site shows in another currency are converted with the day's exchange rate.</p></div>
+    </div>
+    <div class="panel">
+      <div class="money" role="radiogroup" aria-labelledby="h-money" id="money">
+        <label><input type="radio" name="cur" value="EUR"><span class="sign">€</span><span class="name"><span data-i18n>Euro</span><small>EUR</small></span></label>
+        <label><input type="radio" name="cur" value="GBP"><span class="sign">£</span><span class="name"><span data-i18n>Pound</span><small>GBP</small></span></label>
+        <label><input type="radio" name="cur" value="USD"><span class="sign">$</span><span class="name"><span data-i18n>Dollar</span><small>USD</small></span></label>
+        <label><input type="radio" name="cur" value="RUB"><span class="sign">₽</span><span class="name"><span data-i18n>Ruble</span><small>RUB</small></span></label>
+        <label id="money-other"><input type="radio" name="cur" value=""><span class="sign" id="other-sign">¤</span><span class="name"><span data-i18n>Other</span>
+          <select id="other-currency" data-i18n-title="Other currency"></select></span></label>
+      </div>
+      <p class="muted" id="money-note" style="margin-top:10px"></p>
+    </div>
+  </section>
+
+  <section class="block split" aria-labelledby="h-alerts">
+    <div class="block-head"><!--ICON:bell-->
+      <div><h2 id="h-alerts" data-i18n>Price alerts</h2><p data-i18n>Three kinds of LOW PRICE alert, each with its own threshold: a small drop on a comfortable trip can matter more than a bigger one on a 40-hour journey.</p></div>
+    </div>
+    <div class="panel">
+      <div id="kinds">
+        <div class="kind" data-kind="cheapest">
+          <label class="what"><input type="checkbox" data-on>
+            <span><strong data-i18n>Cheapest</strong><span class="muted" data-i18n>The lowest fare, however long the trip.</span></span></label>
+          <div class="nums">
+            <label class="num"><span data-i18n>when it drops by</span> <input type="number" data-drop min="0" max="50" step="0.5"> %</label>
+            <label class="num"><span data-i18n>or costs at most</span> <input type="number" data-max min="1" step="1"> <span class="cur-sign">€</span></label>
+          </div>
+        </div>
+        <div class="kind" data-kind="fastest">
+          <label class="what"><input type="checkbox" data-on>
+            <span><strong data-i18n>Fastest</strong><span class="muted" data-i18n>The cheapest of the quickest trips (within 10% of the shortest travel time).</span></span></label>
+          <div class="nums">
+            <label class="num"><span data-i18n>when it drops by</span> <input type="number" data-drop min="0" max="50" step="0.5"> %</label>
+            <label class="num"><span data-i18n>or costs at most</span> <input type="number" data-max min="1" step="1"> <span class="cur-sign">€</span></label>
+          </div>
+        </div>
+        <div class="kind" data-kind="best">
+          <label class="what"><input type="checkbox" data-on>
+            <span><strong data-i18n>Best value</strong><span class="muted" data-i18n>Your analyst's pick, balancing price, stops, travel time and departure hours.</span><span class="warn-text" id="best-needs-analyst" hidden data-i18n>Needs an analyst: with "No analyst" this kind never alerts.</span></span></label>
+          <div class="nums">
+            <label class="num"><span data-i18n>when it drops by</span> <input type="number" data-drop min="0" max="50" step="0.5"> %</label>
+            <label class="num"><span data-i18n>or costs at most</span> <input type="number" data-max min="1" step="1"> <span class="cur-sign">€</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="filters">
+        <label class="num"><span data-i18n>Ignore trips where one direction takes longer than</span>
+          <input type="number" id="alert_max_hours" min="1" max="99" step="1"> <span data-i18n>hours</span></label>
+        <label class="opt" style="padding:0"><input type="checkbox" id="alert_no_self_transfer">
+          <span data-i18n>Ignore self-transfer trips (you collect your bags and check in again)</span></label>
+      </div>
+      <p class="muted" style="margin-top:12px" data-i18n>Each kind compares with its own price at its last alert (or the first price seen), so daily wobbles stay quiet but a slow slide still alerts once it adds up. A drop of 0% means any drop. The price limit alerts as soon as a fare is at or under it, then again only when it gets cheaper still.</p>
+    </div>
+  </section>
+
+  <section class="block split" aria-labelledby="h-when">
+    <div class="block-head"><!--ICON:clock-->
+      <div><h2 id="h-when" data-i18n>When to check</h2><p data-i18n>AirFare runs quietly in the background and only speaks up for a low price.</p></div>
+    </div>
+    <div class="panel">
+      <label class="opt"><input type="radio" name="sched" data-sched="startup">
+        <span data-i18n-html="html:sched1"><strong>When the PC starts</strong></span></label>
+      <label class="opt"><input type="radio" name="sched" data-sched="interval">
+        <span data-i18n-html="html:sched2"><strong>Every few hours</strong> while the PC is on</span></label>
+      <label class="opt"><input type="radio" name="sched" data-sched="both">
+        <span data-i18n-html="html:sched3"><strong>Both</strong>: when the PC starts, then every few hours</span></label>
+      <div class="grid" id="interval-row" style="margin-top:8px">
+        <label class="f"><span data-i18n>Hours between checks</span>
+          <input type="number" id="interval_hours" min="1" max="48" step="1"></label>
+      </div>
+      <label class="opt" style="margin-top:8px"><input type="checkbox" id="tray">
+        <span data-i18n>Keep a AirFare icon in the notification area (check now, open the dashboard, quit)</span></label>
+      <p class="muted" id="tray-note" hidden data-i18n>The icon needs the pystray and Pillow packages, which this AirFare doesn't have. Run install.ps1 again to add them.</p>
+      <p class="muted" id="sched-status"></p>
+      <p class="muted" id="sched-quota"></p>
+    </div>
+  </section>
+
+  <section class="block split" aria-labelledby="h-analyst">
+    <div class="block-head"><!--ICON:spark-->
+      <div><h2 id="h-analyst" data-i18n>AI analyst</h2><p data-i18n>Reads every check's prices and picks the cheapest and best-value flights. It writes in the language you picked.</p></div>
+    </div>
+    <div class="panel">
+      <label class="opt"><input type="radio" name="llm" data-llm="claude">
+        <span data-i18n-html="html:llm-claude"><strong>Claude</strong> through your Claude account (the Claude Code CLI bundled with AirFare)</span></label>
+      <label class="opt"><input type="radio" name="llm" data-llm="chatgpt">
+        <span data-i18n-html="html:llm-chatgpt"><strong>ChatGPT</strong> with your ChatGPT account (OpenAI's Codex app) or an OpenAI API key</span></label>
+      <label class="opt"><input type="radio" name="llm" data-llm="deepseek">
+        <span data-i18n-html="html:llm-deepseek"><strong>DeepSeek</strong> through the DeepSeek API: needs an API key with credit, cheaper per check</span></label>
+      <label class="opt"><input type="radio" name="llm" data-llm="none">
+        <span data-i18n-html="html:llm-none"><strong>No analyst</strong>: AirFare's own rules pick the cheapest and fastest flights. No AI account needed; best-value alerts stay off.</span></label>
+
+      <div class="sub-block" id="claude-block">
+        <div class="seg" role="group" style="margin-top:12px">
+          <button type="button" data-claude="account" data-i18n>My Claude account</button>
+          <button type="button" data-claude="key" data-i18n>An Anthropic API key</button>
+        </div>
+        <div id="claude-account">
+          <div class="inline-row" style="margin-top:10px">
+            <span id="claude-status" class="muted"></span>
+            <button class="btn small" id="claude-login" data-i18n>Log in to Claude</button>
+            <button class="btn small" id="claude-recheck" data-i18n>Check again</button>
+          </div>
+          <p class="muted" data-i18n>Uses your Claude subscription through the Claude Code CLI bundled with AirFare. Anthropic's terms are written for your own use of Claude Code; using a subscription from another program is your responsibility. The API key is the path meant for a tool like this.</p>
+        </div>
+        <div id="claude-key" hidden>
+          <div class="grid" style="margin-top:10px">
+            <div class="f" style="grid-column: span 2"><label for="anthropic_api_key" data-i18n>Anthropic API key</label>
+              <div class="keyrow"><input type="password" id="anthropic_api_key" autocomplete="off">
+                <button type="button" class="btn" data-savekey="anthropic_api_key" data-i18n>Save key</button></div>
+              <span class="muted" data-keymsg="anthropic_api_key"></span>
+              <button type="button" class="linkish" data-clear="anthropic_api_key" hidden data-i18n>Remove saved key</button></div>
+            <div class="f"><span data-i18n>Key</span>
+              <div class="pair"><span id="an-status">—</span><button class="btn small" id="an-check" data-i18n>Check</button></div></div>
+          </div>
+          <p class="muted" data-i18n-html="html:an-help">Create a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> and add credit under Billing. Your routes and prices are sent to Anthropic's API for each check, billed to that key.</p>
+        </div>
+        <div class="grid" style="margin-top:12px">
+          <label class="f"><span data-i18n>Claude model</span>
+            <select id="model">
+              <option value="claude-sonnet-5-5" data-i18n>Sonnet 5.5 (recommended, ~$0.07 a check)</option>
+              <option value="claude-haiku-5-5" data-i18n>Haiku 5.5 (cheapest, ~$0.01 a check)</option>
+              <option value="claude-opus-5-5" data-i18n>Opus 5.5 (most thorough, ~$0.12 a check)</option>
+              <option value="" data-i18n>Account default</option>
+            </select></label>
+        </div>
+      </div>
+
+      <div class="sub-block" id="chatgpt-block">
+        <div class="seg" role="group" style="margin-top:12px">
+          <button type="button" data-gpt="chatgpt" data-i18n>My ChatGPT account</button>
+          <button type="button" data-gpt="openai" data-i18n>An OpenAI API key</button>
+        </div>
+        <div id="gpt-account">
+          <div class="inline-row" style="margin-top:10px">
+            <span id="chatgpt-status" class="muted"></span>
+            <button class="btn small" id="chatgpt-login" data-i18n>Log in to ChatGPT</button>
+            <button class="btn small" id="chatgpt-recheck" data-i18n>Check again</button>
+          </div>
+          <p class="muted" data-i18n>Uses your ChatGPT plan (Plus, Pro, Business and the like) through OpenAI's Codex app, so checks need no API key and count against your plan's limits. Check OpenAI's terms for using a ChatGPT plan through Codex from another program.</p>
+          <p class="muted" data-i18n-html="html:codex-install">Install the Codex app yourself first, with OpenAI's own installer: open PowerShell and run <code>irm https://chatgpt.com/codex/install.ps1 | iex</code> (see <a href="https://developers.openai.com/codex" target="_blank" rel="noopener">developers.openai.com/codex</a>), then press <strong>Log in to ChatGPT</strong> and sign in once.</p>
+        </div>
+        <div id="gpt-api" hidden>
+          <div class="grid" style="margin-top:10px">
+            <div class="f" style="grid-column: span 2"><label for="openai_api_key" data-i18n>OpenAI API key</label>
+              <div class="keyrow"><input type="password" id="openai_api_key" autocomplete="off">
+                <button type="button" class="btn" data-savekey="openai_api_key" data-i18n>Save key</button></div>
+              <span class="muted" data-keymsg="openai_api_key"></span>
+              <button type="button" class="linkish" data-clear="openai_api_key" hidden data-i18n>Remove saved key</button></div>
+            <label class="f"><span data-i18n>ChatGPT model</span>
+              <select id="openai_model">
+                <option value="gpt-6.1-terra" data-i18n>GPT-6.1 Terra (recommended, ~$0.04 a check)</option>
+                <option value="gpt-6-luna" data-i18n>GPT-6 Luna (cheapest, under $0.01 a check)</option>
+                <option value="gpt-6.1-sol" data-i18n>GPT-6.1 Sol (stronger, ~$0.07 a check)</option>
+                <option value="gpt-6-astra" data-i18n>GPT-6 Astra (most capable, ~$0.35 a check)</option>
+              </select></label>
+            <div class="f"><span data-i18n>Key</span>
+              <div class="pair"><span id="oa-status">—</span><button class="btn small" id="oa-check" data-i18n>Check</button></div></div>
+          </div>
+          <p class="muted" data-i18n-html="html:oa-help">Create a key at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a> and add credit under Billing. Your routes and prices are sent to OpenAI's API for each check. Cost figures in the log are estimates from OpenAI's published prices.</p>
+        </div>
+      </div>
+
+      <div class="sub-block" id="deepseek-block">
+        <div class="grid" style="margin-top:10px">
+          <div class="f" style="grid-column: span 2"><label for="deepseek_api_key" data-i18n>DeepSeek API key</label>
+            <div class="keyrow"><input type="password" id="deepseek_api_key" autocomplete="off">
+              <button type="button" class="btn" data-savekey="deepseek_api_key" data-i18n>Save key</button></div>
+            <span class="muted" data-keymsg="deepseek_api_key"></span>
+            <button type="button" class="linkish" data-clear="deepseek_api_key" hidden data-i18n>Remove saved key</button></div>
+          <label class="f"><span data-i18n>DeepSeek model</span>
+            <select id="deepseek_model">
+              <option value="deepseek-flash" data-i18n>V4.1 Flash (recommended, under $0.01 a check)</option>
+              <option value="deepseek-v4-pro" data-i18n>V4 Pro (stronger, a few cents a check)</option>
+            </select></label>
+          <div class="f"><span data-i18n>Balance</span>
+            <div class="pair"><span id="ds-balance">—</span><button class="btn small" id="ds-check" data-i18n>Check</button></div></div>
+        </div>
+        <p class="muted" data-i18n-html="html:ds-help">Create a key and add credit at <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">platform.deepseek.com</a>. Your routes and prices are sent to DeepSeek's API for each check. Cost figures in the log are estimates from DeepSeek's published prices.</p>
+      </div>
+
+      <div id="session-block">
+        <div class="grid" style="margin-top:14px">
+          <label class="f"><span data-i18n>New conversation after (thousand tokens)</span>
+            <input type="number" id="session_max_k" min="10" max="500" step="5"></label>
+        </div>
+        <p class="muted" data-i18n>Checks are hours apart, so a long conversation gets re-read in full every time. AirFare starts a fresh one before it passes this size; your price history and the analyst's last recommendation carry over.</p>
+      </div>
+      <p class="muted" id="none-note" hidden data-i18n>Without an analyst, AirFare still records every price, alerts on the cheapest and fastest fares and draws the dashboard. The best-value pick, the analysis text and the lowest-price lookups need an analyst.</p>
+    </div>
+  </section>
+
+  <section class="block split" aria-labelledby="h-tuning">
+    <div class="block-head"><!--ICON:sliders-->
+      <div><h2 id="h-tuning" data-i18n>Fine-tuning</h2><p data-i18n>Which Skyscanner site to use and how long to wait for prices.</p></div>
+    </div>
+    <div class="panel">
+      <div class="grid">
+        <label class="f"><span data-i18n>Skyscanner site</span>
+          <input type="text" id="domain" list="domains" placeholder="www.skyscanner.net">
+          <datalist id="domains"></datalist>
+        </label>
+        <label class="f"><span data-i18n>Seconds to wait per page</span>
+          <input type="number" id="wait_seconds" min="10" max="90">
+        </label>
+        <label class="f"><span data-i18n>Most pages per check</span>
+          <input type="number" id="max_pages" min="1" max="60">
+        </label>
+        <label class="f"><span data-i18n>Limits</span>
+          <select id="limits">
+            <option value="personal" data-i18n>Personal</option>
+            <option value="extended" data-i18n>Extended</option>
+          </select>
+        </label>
+      </div>
+      <p class="muted" id="limits-note"></p>
+      <p class="muted" id="count"></p>
+      <div class="sub-block">
+        <h3 data-i18n>Updates</h3>
+        <div class="inline-row" style="margin-top:8px">
+          <span class="muted" id="update-status"></span>
+          <button class="btn small" id="update-check" data-i18n>Check for updates</button>
+        </div>
+        <label class="opt"><input type="checkbox" id="update_check">
+          <span data-i18n>Look for a newer AirFare when Settings opens (one anonymous request to github.com, at most once a day)</span></label>
+      </div>
+    </div>
+  </section>
+
+  <section class="block split" aria-labelledby="h-latest">
+    <div class="block-head"><!--ICON:trend-->
+      <div><h2 id="h-latest" data-i18n>Latest analysis</h2><p data-i18n>What your analyst said after the most recent check.</p></div>
+    </div>
+    <div class="panel analysis" id="latest"><p class="muted" data-i18n-html="html:no-checks">No checks yet. Press <strong>Run check now</strong> once your routes are saved.</p></div>
+  </section>
+  <!--LEGAL-->
+</main>
+
+<div class="bar">
+  <div class="bar-in">
+    <span class="msg" id="msg" role="status" aria-live="polite"></span>
+    <button class="btn" id="test-all" data-i18n>Test links</button>
+    <button class="btn" id="run" data-i18n>Run check now</button>
+    <button class="btn primary" id="save" data-i18n>Save</button>
+  </div>
+</div>
+
+<template id="route-tpl">
+  <article class="pass route">
+    <div class="stub" aria-hidden="true">
+      <span class="iata from"></span>
+      <svg class="stub-plane" viewBox="0 0 24 24"><path d="__PLANE__"/></svg>
+      <span class="iata to"></span>
+      <span class="stub-meta"></span>
+    </div>
+    <div class="ticket">
+      <div class="card-head">
+        <input type="text" data-k="name" data-i18n-ph="Name (optional), e.g. Weekend in Rome" data-i18n-title="Route name">
+        <label class="check" style="padding:0"><input type="checkbox" data-k="enabled"> <span data-i18n>Track</span></label>
+        <button class="ghost" data-act="remove" data-i18n-title="Remove route">×</button>
+      </div>
+      <div class="spec">
+        <div class="grid">
+          <label class="f"><span data-i18n>From</span>
+            <div class="pair"><input type="text" class="code" data-k="origin" placeholder="LHR" maxlength="8">
+              <button class="ghost" data-act="swap" data-i18n-title="Swap From and To">⇄</button></div>
+          </label>
+          <label class="f"><span data-i18n>To</span> <input type="text" class="code" data-k="destination" placeholder="BCN" maxlength="8"></label>
+          <div class="f"><span data-i18n>Trip</span>
+            <div class="seg" role="group">
+              <button type="button" data-trip="oneway" data-i18n>One-way</button>
+              <button type="button" data-trip="return" data-i18n>Return</button>
+            </div>
+          </div>
+        </div>
+        <div class="grid" style="margin-top:12px">
+          <label class="f"><span data-i18n>Depart on (or from)</span>
+            <input type="date" data-k="depart_from"></label>
+          <label class="f"><span data-i18n>…until (optional, flexible dates)</span>
+            <input type="date" data-k="depart_to"></label>
+          <label class="f ret"><span data-i18n>Return on (or from)</span>
+            <input type="date" data-k="return_from"></label>
+          <label class="f ret"><span data-i18n>…until (optional)</span>
+            <input type="date" data-k="return_to"></label>
+        </div>
+        <div class="grid" style="margin-top:12px">
+          <label class="f"><span data-i18n>Adults</span> <input type="number" data-k="adults" min="1" max="9"></label>
+          <label class="f"><span data-i18n>Children's ages</span> <input type="text" data-k="children" data-i18n-ph="none, or e.g. 4, 9" inputmode="numeric"></label>
+          <label class="f"><span data-i18n>Cabin</span>
+            <select data-k="cabin">
+              <option value="economy" data-i18n>Economy</option>
+              <option value="premiumeconomy" data-i18n>Premium economy</option>
+              <option value="business" data-i18n>Business</option>
+              <option value="first" data-i18n>First</option>
+            </select></label>
+          <label class="check"><input type="checkbox" data-k="direct_only"> <span data-i18n>Prefer direct flights</span></label>
+        </div>
+      </div>
+      <div class="links" hidden>
+        <p class="muted" style="margin-top:0" data-i18n>Paste Skyscanner result links (open the search on Skyscanner and copy the address bar).</p>
+        <div class="link-list"></div>
+        <button class="btn" data-act="add-manual" style="margin-top:8px" data-i18n>+ Another link</button>
+      </div>
+      <details class="pages" open>
+        <summary></summary>
+        <div class="page-list"></div>
+      </details>
+      <div class="row-actions">
+        <button class="btn" data-act="test" data-i18n>Test this route</button>
+      </div>
+    </div>
+  </article>
+</template>
+
+<!--I18N-->
+<script>
+const H = {"Content-Type": "application/json", "X-AirFare": "1"};
+const SETTINGS = ["domain", "wait_seconds", "max_pages", "model", "session_max_k", "deepseek_model", "openai_model",
+                  "interval_hours", "alert_max_hours", "browser"];
+let BROWSERS = {}, VERSION = "";
+let LIMITS = {}, limitsOk = false;      // the levels' numbers (limits.py); whether Extended's warning was accepted
+const NUMERIC = ["wait_seconds", "max_pages", "session_max_k", "interval_hours", "alert_max_hours"];
+const KEYS = ["serpapi_key", "deepseek_api_key", "openai_api_key", "anthropic_api_key"];
+const KINDS = ["cheapest", "fastest", "best"];
+let CURRENCIES = {EUR: "€", GBP: "£", USD: "$", RUB: "₽"};        // the server sends the full list
+let cfg = null, view = null, dirty = false, busy = null, svc = {}, extLatest = null, lastState = null;
+let lastMsg = ["", ""], claudeLast = null, gptLast = null, gptMode = "chatgpt", claudeMode = "account";
+const tests = {};               // "routeId|pageKey|source" -> test result
+const $ = (s, el = document) => el.querySelector(s);
+
+// ----- language: every text is looked up by its English wording, so switching needs no reload --------
+const TEXTS = JSON.parse(($("#i18n") || {}).textContent || "{}");
+let LANG = document.documentElement.lang || "en";
+const LOCALE = {en: "en-GB", es: "es-ES", ru: "ru-RU"};
+const fill = (s, p) => String(s).replace(/\{(\w+)\}/g, (m, k) => (p && k in p ? p[k] : m));
+function t(text, params) { return fill(((TEXTS[LANG] || {})[text]) || text, params); }
+function tn(n, forms, params) {
+  const options = (((TEXTS[LANG] || {})[forms]) || forms).split("|");
+  let i = n === 1 ? 0 : 1;
+  if (LANG === "ru") i = n % 10 === 1 && n % 100 !== 11 ? 0 : (n % 10 >= 2 && n % 10 <= 4 && !(n % 100 >= 12 && n % 100 <= 14) ? 1 : 2);
+  return fill(options[Math.min(i, options.length - 1)], {n, ...params});
+}
+const squash = s => String(s).replace(/\s+/g, " ").trim();
+function translateStatic(root = document) {
+  root.querySelectorAll("[data-i18n]").forEach(el => {
+    if (!el.dataset.en) el.dataset.en = squash(el.textContent);
+    el.textContent = t(el.dataset.en);
+  });
+  root.querySelectorAll("[data-i18n-html]").forEach(el => {   // our own texts with <strong>, <code> or links
+    const key = el.dataset.i18nHtml;
+    if (!el.dataset.enHtml) el.dataset.enHtml = el.innerHTML;
+    el.innerHTML = LANG === "en" ? el.dataset.enHtml : ((TEXTS[LANG] || {})[key] || el.dataset.enHtml);
+  });
+  root.querySelectorAll("[data-i18n-ph]").forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+  root.querySelectorAll("[data-i18n-title]").forEach(el => { el.title = t(el.dataset.i18nTitle); el.setAttribute("aria-label", el.title); });
+}
+window.airfareLanguage = lang => {     // called by the EN · ES · RU links in the top bar
+  LANG = lang;
+  if (cfg) cfg.language = lang;
+  translateStatic();
+  if (!cfg) return;
+  const flags = Object.fromEntries(cfg.routes.map(r => [r.id, r._linkOnly]));
+  payload();                            // keep everything typed so far
+  cfg.routes.forEach(r => r._linkOnly = flags[r.id]);
+  render();
+  if (lastState) { sessionPill(lastState); extensionStatus(lastState); }
+  if (claudeLast) showClaude(claudeLast);
+  if (gptLast) showChatGPT(gptLast);
+  if (lastMsg[0]) say(lastMsg[0], lastMsg[1], lastMsg[2]);   // a message from a website or API stays as it was
+};
+
+function msg(text, kind = "", key = null, params = null) {
+  // Plain text: messages can quote error notes from websites and APIs.
+  lastMsg = [key || "", kind, params];
+  const m = $("#msg"); m.className = "msg " + kind;
+  m.textContent = text;
+  if (busy) { const s = document.createElement("span"); s.className = "spinner"; m.prepend(s); }
+}
+function say(key, kind = "", params = null) { msg(t(key, params), kind, key, params); }
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function rid() { return Math.random().toString(16).slice(2, 8); }
+function fmtDay(iso) {
+  if (!iso) return "?";
+  return new Date(iso + "T12:00:00").toLocaleDateString(LOCALE[LANG], {weekday: "short", day: "numeric", month: "short", year: "numeric"});
+}
+
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {headers: H} : {method: "POST", headers: H, body: JSON.stringify(body)});
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error ? t(data.error) : t("Request failed ({status})", {status: r.status}));
+  return data;
+}
+
+function newRoute(linkOnly) {
+  const d = new Date(); d.setDate(d.getDate() + 30);
+  const iso = d.toISOString().slice(0, 10);
+  return linkOnly
+    ? {id: rid(), name: "", enabled: true, origin: "", destination: "", trip: "oneway", manual_pages: [{key: null, url: ""}], adults: 1, children: [], cabin: "economy"}
+    : {id: rid(), name: "", enabled: true, origin: "", destination: "", trip: "return", depart_from: iso, depart_to: "",
+       return_from: "", return_to: "", adults: 1, children: [], cabin: "economy", direct_only: false, manual_pages: []};
+}
+const isLinkOnly = r => !r.origin && !r.destination && (r.manual_pages || []).some(m => !m.key) && r._linkOnly !== false;
+
+function render() {
+  const box = $("#routes"); box.innerHTML = "";
+  cfg.routes.forEach(r => box.appendChild(routeCard(r)));
+  renderBrowser();                 // fills the browser list before its value is set below
+  for (const k of SETTINGS) {
+    const el = $("#" + k), v = String(cfg[k] ?? "");
+    // A value from another AirFare version (or typed into config.json) stays as it is instead of being replaced.
+    if (el.tagName === "SELECT" && v && ![...el.options].some(o => o.value === v)) el.add(new Option(v, v));
+    el.value = v;
+  }
+  document.querySelectorAll("[data-src]").forEach(c => c.checked = (cfg.sources || []).includes(c.dataset.src));
+  $("#tray").checked = !!cfg.tray;
+  $("#update_check").checked = cfg.update_check !== false;
+  $("#limits").value = cfg.limits === "extended" ? "extended" : "personal";
+  const provider = cfg.llm_provider || "claude";
+  if (provider === "openai" || provider === "chatgpt") gptMode = provider;
+  claudeMode = cfg.claude_mode === "key" ? "key" : "account";
+  document.querySelectorAll("[data-llm]").forEach(r => r.checked = (provider === "openai" ? "chatgpt" : provider) === r.dataset.llm);
+  document.querySelectorAll("[data-sched]").forEach(r => r.checked = (cfg.schedule || "startup") === r.dataset.sched);
+  renderMoney();
+  renderAlerts();
+  renderSources();
+  renderAnalyst();
+  renderSchedule();
+  renderLimits();
+  renderPages();
+  renderKeys();
+  translateStatic();
+}
+
+function renderLimits() {        // what the chosen level allows the browser sources
+  const level = $("#limits").value, l = LIMITS[level];
+  $("#limits-note").textContent = l ? t("{level}: at most {pages} Skyscanner and Aviasales pages per check and {day} a day; automatic checks open them at most once every {hours} hours. Google Flights (SerpApi) isn't limited.",
+    {level: t(level === "extended" ? "Extended" : "Personal"), pages: l.pages, day: l.per_day, hours: l.hours}) : "";
+}
+function onLimits(e) {
+  if (e.target.value === "extended") {
+    // Extended only after this warning; the server refuses it without the go-ahead.
+    if (!confirm(t("Extended limits load more pages from Skyscanner and Aviasales. Their terms don't allow automated visits, and more pages mean more robot checks or a blocked browser. Use it only for your own trips, at your own risk."))) { e.target.value = "personal"; renderLimits(); return; }
+    limitsOk = true;
+  } else limitsOk = false;
+  renderLimits(); changed();
+}
+
+const MAIN_CURRENCIES = ["EUR", "GBP", "USD", "RUB"];     // the big buttons; every other currency is in the list
+function renderMoney() {
+  const cur = cfg.currency || "EUR", box = $("#money"), other = $("#other-currency");
+  if (!other.options.length) {
+    for (const c of Object.keys(CURRENCIES).filter(c => !MAIN_CURRENCIES.includes(c))) {
+      other.add(new Option(CURRENCIES[c] && CURRENCIES[c] !== c ? `${c} (${CURRENCIES[c]})` : c, c));
+    }
+  }
+  const main = MAIN_CURRENCIES.includes(cur);
+  if (!main && ![...other.options].some(o => o.value === cur)) other.add(new Option(cur, cur));   // from an older AirFare or config.json
+  box.querySelectorAll("input").forEach(i => i.checked = main ? i.value === cur : i.value === "");
+  if (!main) other.value = cur;
+  $("#other-sign").textContent = main ? "¤" : (CURRENCIES[cur] || cur);
+  document.querySelectorAll(".cur-sign").forEach(s => s.textContent = CURRENCIES[cur] || cur);
+  $("#money-note").textContent = cur === "RUB" ? t("Aviasales shows rubles already; other sites are converted.")
+    : t("Aviasales.ru shows rubles: AirFare converts them for you.");
+}
+function onMoney(e) { cfg.currency = e.target.value || $("#other-currency").value; renderMoney(); changed(); }
+
+function renderAlerts() {
+  for (const kind of KINDS) {
+    const row = $(`.kind[data-kind="${kind}"]`), a = (cfg.alerts || {})[kind] || {};
+    $("[data-on]", row).checked = a.on !== false;
+    $("[data-drop]", row).value = a.drop ?? "";
+    $("[data-max]", row).value = a.max ?? "";
+    row.classList.toggle("off", a.on === false);
+  }
+  $("#alert_no_self_transfer").checked = !!cfg.alert_no_self_transfer;
+}
+function readAlerts() {
+  const out = {};
+  for (const kind of KINDS) {
+    const row = $(`.kind[data-kind="${kind}"]`);
+    const num = s => { const v = $(s, row).value.trim(); return v === "" ? null : Number(v); };
+    out[kind] = {on: $("[data-on]", row).checked, drop: num("[data-drop]") ?? 0, max: num("[data-max]")};
+  }
+  return out;
+}
+
+// Saved API keys never come to this page: the field stays empty and shows the key's last characters.
+// A key saved on another PC or Windows account can't be decrypted here (unreadable_keys): it asks for it again.
+function renderKeys() {
+  const hints = {serpapi_key: t("serpapi.com → Api Key"), deepseek_api_key: t("platform.deepseek.com → API keys"),
+                 openai_api_key: t("platform.openai.com → API keys"), anthropic_api_key: t("console.anthropic.com → API keys")};
+  for (const k of KEYS) {
+    const saved = (cfg.saved_keys || {})[k], unreadable = (cfg.unreadable_keys || []).includes(k);
+    $("#" + k).placeholder = saved ? t("Saved key {key}. Type a new key to replace it.", {key: saved}) :
+      unreadable ? t("The saved key can't be read on this Windows account. Paste it again.") : hints[k];
+    $(`[data-clear="${k}"]`).hidden = !saved;
+  }
+}
+async function saveKey(name) {
+  const input = $("#" + name), note = $(`[data-keymsg="${name}"]`), value = input.value.trim();
+  if (!value) { note.className = "err-text"; note.textContent = t("Paste the key first."); input.focus(); return; }
+  note.className = "muted"; note.textContent = t("Saving…");
+  try {
+    const d = await api("/api/keys", {name, value});
+    cfg.saved_keys = d.saved_keys; input.value = ""; renderKeys();
+    const c = d.check || {};
+    if (c.error) { note.className = "warn-text"; note.textContent = t("Saved, but the service says: {error}", {error: c.error}); }
+    else if (name === "serpapi_key") {
+      note.className = "ok-text";
+      note.textContent = t("Saved. {n} searches left this month.", {n: c.total_searches_left ?? c.plan_searches_left ?? "?"});
+    } else if (name === "openai_api_key") {
+      note.className = "ok-text";
+      note.textContent = t("Saved. OpenAI accepts the key.");
+    } else if (name === "anthropic_api_key") {
+      note.className = "ok-text";
+      note.textContent = t("Saved. Anthropic accepts the key.");
+      if (selectedAnalyst() === "claude") claudeStatus();
+    } else {
+      note.className = "ok-text";
+      note.textContent = t("Saved. Balance: {balance}.", {balance: c.balance || "?"});
+    }
+  } catch (e) { note.className = "err-text"; note.textContent = e.message; }
+}
+async function removeKey(name) {
+  if (!confirm(t("Remove the saved key?"))) return;
+  const note = $(`[data-keymsg="${name}"]`);
+  try {
+    const d = await api("/api/keys", {name, value: ""});
+    cfg.saved_keys = d.saved_keys; renderKeys();
+    note.className = "muted"; note.textContent = t("Key removed.");
+  } catch (e) { note.className = "err-text"; note.textContent = e.message; }
+}
+
+function selectedSources() {
+  return [...document.querySelectorAll("[data-src]")].filter(c => c.checked).map(c => c.dataset.src);
+}
+function renderSources() {
+  const s = selectedSources();
+  $("#ext-block").hidden = !s.includes("extension") && !s.includes("aviasales");
+  $("#serp-block").hidden = !s.includes("serpapi");
+  renderBrowser();
+}
+function renderBrowser() {      // which browser runs the extension, its extensions page, folder and steps
+  const sel = $("#browser");
+  if (!sel.options.length) {
+    for (const [k, b] of Object.entries(BROWSERS)) sel.add(new Option(b.name, k));
+  }
+  for (const o of sel.options) {
+    const b = BROWSERS[o.value] || {};
+    o.textContent = b.installed === false ? t("{browser} (not installed)", {browser: b.name}) : b.name;
+  }
+  if (!sel.value) sel.value = "chrome";
+  const b = BROWSERS[sel.value] || {};
+  $("#ext-page").textContent = b.page || "chrome://extensions";
+  $("#ext-dir").textContent = b.folder || "";
+  // Firefox loads its own build of the extension, as a temporary or a signed add-on; the others load it unpacked.
+  document.querySelectorAll("[data-ext]").forEach(el => el.hidden = el.dataset.ext !== (sel.value === "firefox" ? "firefox" : "chromium"));
+  if (lastState) extensionStatus(lastState);
+}
+function selectedSchedule() {
+  const r = document.querySelector("[data-sched]:checked");
+  return r ? r.dataset.sched : "startup";
+}
+function renderSchedule() {
+  const mode = selectedSchedule();
+  const hours = Number($("#interval_hours").value) || 6;
+  $("#interval-row").hidden = mode === "startup";
+  const st = $("#sched-status"), tray = $("#tray").checked;
+  if (svc.running && (mode !== "startup" || tray)) {
+    st.textContent = svc.next_check ? t("Background checker is running; next check around {when}.", {when: svc.next_check.replace("T", " ")})
+      : t("Background checker is running.");
+  } else if (mode === "startup" && !tray) {
+    st.textContent = t("AirFare checks once each time the PC starts.");
+  } else {
+    st.textContent = t("The background checker starts when you press Save (and at every PC start after that).");
+  }
+  if (tray && svc.running && cfg && cfg.tray !== tray) st.textContent += " " + t("The icon appears once the checker restarts, a minute after you save.");
+  const perDay = (mode === "interval" ? 0 : 1) + (mode === "startup" ? 0 : 24 / hours);
+  const q = $("#sched-quota");
+  if (selectedSources().includes("serpapi") && view) {
+    const month = Math.round(view.planned * perDay * 30);
+    q.textContent = t("At most about {n} Google Flights searches a month with this schedule (SerpApi free plan: 250; repeats within an hour are free).", {n: month});
+    q.style.color = month > 250 ? "var(--bad)" : "";
+  } else {
+    q.textContent = "";
+  }
+}
+function selectedAnalyst() {      // claude, chatgpt (the ChatGPT account), openai (an API key), deepseek or none
+  const r = document.querySelector("[data-llm]:checked");
+  const p = r ? r.dataset.llm : "claude";
+  return p === "chatgpt" ? gptMode : p;
+}
+function renderAnalyst() {
+  const p = selectedAnalyst();
+  $("#claude-block").hidden = p !== "claude";
+  $("#chatgpt-block").hidden = p !== "chatgpt" && p !== "openai";
+  $("#deepseek-block").hidden = p !== "deepseek";
+  $("#session-block").hidden = p === "none";
+  $("#none-note").hidden = p !== "none";
+  $("#best-needs-analyst").hidden = p !== "none";
+  document.querySelectorAll("[data-gpt]").forEach(b => b.classList.toggle("on", b.dataset.gpt === gptMode));
+  $("#gpt-account").hidden = gptMode !== "chatgpt";
+  $("#gpt-api").hidden = gptMode !== "openai";
+  document.querySelectorAll("[data-claude]").forEach(b => b.classList.toggle("on", b.dataset.claude === claudeMode));
+  $("#claude-account").hidden = claudeMode !== "account";
+  $("#claude-key").hidden = claudeMode !== "key";
+}
+function showChatGPT(s) {
+  const el = $("#chatgpt-status");
+  $("#chatgpt-login").hidden = !!(s && (s.installed === false || s.logged_in));
+  if (s.checking) { el.className = "muted"; el.textContent = t("Checking the ChatGPT sign-in…"); }
+  else if (s.error) { el.className = "warn-text"; el.textContent = s.error; }
+  else if (!s.installed) { el.className = "warn-text"; el.textContent = t("The Codex app isn't installed yet. Install it with OpenAI's installer (see below), then press Check again."); }
+  else if (s.logged_in) { el.className = "ok-text"; el.textContent = t("Signed in to ChatGPT."); }
+  else { el.className = "warn-text"; el.textContent = t("Not signed in yet. Press Log in to ChatGPT and sign in with your ChatGPT account."); }
+}
+async function chatgptStatus() {
+  gptLast = {checking: true}; showChatGPT(gptLast);
+  try { gptLast = await api("/api/chatgpt", {}); }
+  catch (e) { gptLast = {installed: true, logged_in: false, error: e.message}; }
+  showChatGPT(gptLast);
+}
+function newer(a, b) {   // true when version a is newer than b
+  const pa = String(a || "0").split(".").map(Number), pb = String(b || "0").split(".").map(Number);
+  for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0);
+  return false;
+}
+function extensionStatus(state) {
+  const el = $("#ext-status"), kind = $("#browser").value;
+  const latest = (BROWSERS[kind] || {}).latest || extLatest;
+  if (state.extension_seen && latest && newer(latest, state.extension_version)) {
+    el.className = "warn-text";
+    el.textContent = kind === "firefox"
+      ? t("Firefox is still running an older copy of the add-on (v{old}; this AirFare has v{new}). Load it again in about:debugging, or sign and install the new version.",
+          {old: state.extension_version || "?", new: latest})
+      : t("The browser is still running an older copy of the extension (v{old}; this AirFare has v{new}). Open its extensions page and click the reload arrow on AirFare collector, or restart the browser.",
+          {old: state.extension_version || "?", new: latest});
+    return;
+  }
+  el.className = "muted";
+  el.textContent = state.extension_seen
+    ? t("Connected: last heard from the extension (v{version}) on {when}.", {version: state.extension_version || "?", when: state.extension_seen.replace("T", " ")})
+    : t("Not connected yet. The extension reports in the first time AirFare tests links or checks prices.");
+}
+
+const kidCount = r => (Array.isArray(r.children) ? r.children : String(r.children || "").split(/[,\s;]+/)).filter(x => x !== "").length;
+function paintStub(el, r) {
+  const stub = $(".stub", el), n = Number(r.adults) || 1, kids = kidCount(r);
+  stub.classList.toggle("link", !!r._linkOnly);
+  $(".from", stub).textContent = r._linkOnly ? t("Link") : ((r.origin || "").toUpperCase() || "···");
+  $(".to", stub).textContent = (r.destination || "").toUpperCase() || "···";
+  $(".stub-meta", stub).textContent = r._linkOnly ? t("Skyscanner link")
+    : `${r.trip === "return" ? t("Return") : t("One-way")}, ${tn(n, "{n} adult|{n} adults")}` + (kids ? ", " + tn(kids, "{n} child|{n} children") : "");
+}
+
+function routeCard(r) {
+  const el = $("#route-tpl").content.firstElementChild.cloneNode(true);
+  translateStatic(el);
+  el.dataset.id = r.id;
+  const linkOnly = r._linkOnly ?? isLinkOnly(r);
+  r._linkOnly = linkOnly;
+  $(".spec", el).hidden = linkOnly;
+  $(".links", el).hidden = !linkOnly;
+  el.querySelectorAll("[data-k]").forEach(inp => {
+    const k = inp.dataset.k;
+    if (inp.type === "checkbox") inp.checked = k === "enabled" ? r.enabled !== false : !!r[k];
+    else inp.value = Array.isArray(r[k]) ? r[k].join(", ") : (r[k] ?? "");
+    inp.addEventListener("input", () => {
+      r[k] = inp.type === "checkbox" ? inp.checked : inp.type === "number" ? Number(inp.value) : inp.value.trim();
+      if (k === "enabled") el.classList.toggle("off", !inp.checked);
+      paintStub(el, r);
+      changed();
+    });
+  });
+  el.classList.toggle("off", r.enabled === false);
+  const setTrip = trip => {
+    r.trip = trip;
+    el.querySelectorAll("[data-trip]").forEach(b => b.classList.toggle("on", b.dataset.trip === trip));
+    el.querySelectorAll(".ret").forEach(x => x.hidden = trip !== "return");
+    paintStub(el, r);
+  };
+  el.querySelectorAll("[data-trip]").forEach(b => b.onclick = () => { setTrip(b.dataset.trip); changed(); });
+  setTrip(r.trip || "oneway");
+  if (linkOnly) renderLinks(el, r);
+
+  el.addEventListener("click", e => {
+    const act = e.target.dataset.act;
+    if (act === "remove" && confirm(t("Remove this route?"))) { cfg.routes = cfg.routes.filter(x => x !== r); el.remove(); changed(); }
+    if (act === "swap") { [r.origin, r.destination] = [r.destination, r.origin]; payload(); render(); changed(); }
+    if (act === "add-manual") { r.manual_pages.push({key: null, url: ""}); renderLinks(el, r); }
+    if (act === "test") testLinks(r.id);
+  });
+  return el;
+}
+
+function renderLinks(el, r) {
+  const list = $(".link-list", el); list.innerHTML = "";
+  r.manual_pages.filter(m => !m.key).forEach(m => {
+    const inp = document.createElement("input");
+    inp.type = "url"; inp.placeholder = "https://www.skyscanner.net/transport/flights/lhr/bcn/270312/…"; inp.value = m.url;
+    inp.style.marginBottom = "6px";
+    inp.oninput = () => { m.url = inp.value.trim(); changed(); };
+    list.appendChild(inp);
+  });
+}
+
+function renderPages() {
+  if (!view) return;
+  const n = view.planned, s = selectedSources();
+  $("#count").textContent = tn(n, "{n} date combination per check|{n} date combinations per check") +
+    (s.includes("serpapi") ? ", " + tn(n, "{n} SerpApi search|{n} SerpApi searches") : "") +
+    (view.left_out ? ". " + tn(view.left_out, "{n} more is over the limit and will be skipped.|{n} more are over the limit and will be skipped.") : ".") +
+    (view.browser_left_out ? " " + tn(view.browser_left_out, "Skyscanner and Aviasales: {n} more page is over the limits for one check and will be left out.|Skyscanner and Aviasales: {n} more pages are over the limits for one check and will be left out.") : "");
+  document.querySelectorAll(".route").forEach(el => {
+    const r = cfg.routes.find(x => x.id === el.dataset.id);
+    const pv = view.routes[el.dataset.id];
+    const list = $(".page-list", el); list.innerHTML = "";
+    const pages = pv ? pv.pages : [];
+    const problem = (view.problems || {})[el.dataset.id];
+    $(".pages summary", el).textContent = problem ? t(problem) : pages.length
+      ? tn(pages.length, "{n} date combination for this route|{n} date combinations for this route")
+      : t("No pages: the dates are in the past");
+    pages.forEach(p => list.appendChild(pageRow(r, p)));
+  });
+  renderSchedule();
+}
+
+function pageRow(r, p) {
+  const row = document.createElement("div"); row.className = "page";
+  const ts = Object.values(tests).filter(x => x.route_id === r.id && x.key === p.key);
+  let badge = ts.length ? ts.map(testBadge).join(" ") : `<span class="badge">${esc(t("not tested"))}</span>`;
+  if (!p.planned) badge += ` <span class="badge skip" title="${esc(t("Over the page limit"))}">${esc(t("skipped"))}</span>`;
+  const dates = p.depart ? fmtDay(p.depart) + (p["return"] ? " – " + fmtDay(p["return"]) : " (" + t("one-way") + ")") : t("Pasted link");
+  row.innerHTML = `<div class="dates">${esc(dates)} <span class="badge">${esc(p.source === "manual" ? t("your link") : t("auto"))}</span></div>
+    <div class="meta">${badge}<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(t("open"))}</a>
+    <button class="ghost" style="font-size:13px" data-fix>${esc(p.source === "manual" ? t("change link") : t("use my own link"))}</button></div>`;
+  // Only a Skyscanner page that loaded without prices suggests a wrong link.
+  const failed = ts.some(x => x.source === "Skyscanner" && x.status === "no_results");
+  const showFix = (open) => {
+    if ($(".fix", row)) return;
+    const fix = document.createElement("div"); fix.className = "fix";
+    fix.innerHTML = `<input type="url" placeholder="${esc(t("Paste the working Skyscanner link for these dates"))}" aria-label="${esc(t("Skyscanner link"))}">
+      <button class="btn">${esc(t("Use link"))}</button>`;
+    const inp = $("input", fix);
+    const existing = (r.manual_pages || []).find(m => m.key === p.key);
+    if (existing) inp.value = existing.url;
+    $("button", fix).onclick = () => {
+      const url = inp.value.trim();
+      r.manual_pages = (r.manual_pages || []).filter(m => m.key !== p.key);
+      if (url) r.manual_pages.push({key: p.key, url});
+      for (const k of Object.keys(tests)) if (k.startsWith(r.id + "|" + p.key + "|")) delete tests[k];
+      changed();
+    };
+    row.appendChild(fix);
+    if (open) inp.focus();
+  };
+  if (r._linkOnly) $("[data-fix]", row).hidden = true;   // link-only routes edit their links above
+  else if (failed) showFix(false);
+  $("[data-fix]", row).onclick = () => showFix(true);
+  return row;
+}
+
+function testBadge(x) {
+  const src = esc(x.source);
+  if (x.status === "ok" && x.cheapest) return `<span class="badge ok">${src}: ${esc(t("from {price}, {n} flights", {price: x.cheapest, n: x.results}))}</span>`;
+  if (x.status === "blocked") return `<span class="badge warn">${src}: ${esc(t("robot check not solved"))}</span>`;
+  return `<span class="badge bad" title="${esc(t(x.note))}">${src}: ✗ ${esc(t(x.note || x.status))}</span>`;
+}
+
+let previewTimer = null;
+function payload() {
+  for (const k of SETTINGS) {
+    const v = $("#" + k).value.trim(); cfg[k] = NUMERIC.includes(k) ? (v === "" ? null : Number(v)) : v;
+  }
+  for (const k of KEYS) cfg[k] = $("#" + k).value.trim();
+  cfg.sources = selectedSources();
+  cfg.llm_provider = selectedAnalyst();
+  cfg.claude_mode = claudeMode;
+  cfg.tray = $("#tray").checked;
+  cfg.update_check = $("#update_check").checked;
+  cfg.schedule = selectedSchedule();
+  cfg.limits = $("#limits").value;
+  cfg.limits_confirmed = limitsOk;
+  cfg.alerts = readAlerts();
+  cfg.alert_no_self_transfer = $("#alert_no_self_transfer").checked;
+  cfg.language = LANG;
+  return {...cfg, routes: cfg.routes.map(({_linkOnly, ...r}) => ({...r, origin: (r.origin || "").toLowerCase(), destination: (r.destination || "").toLowerCase()}))};
+}
+function changed() {
+  dirty = true; say("Unsaved changes");
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(async () => {
+    try { view = await api("/api/preview", {config: payload()}); renderPages(); say("Unsaved changes"); }
+    catch (e) { msg(e.message, "err"); }
+  }, 350);
+}
+
+async function save() {
+  clearTimeout(previewTimer);        // its answer has the preview; a late one would say "Unsaved changes" again
+  const sent = payload();
+  const data = await api("/api/save", {config: sent});
+  // An older AirFare server would quietly drop settings it doesn't know; keep what was typed and say so.
+  const saved = data.config.saved_keys;
+  const lost = saved && KEYS.some(k => sent[k] && saved[k] !== "…" + sent[k].slice(-4));
+  if (!saved || lost || !Array.isArray(data.config.sources) || !data.config.alerts) {
+    throw new Error(t("These settings weren't fully saved because this tab is talking to an outdated AirFare server. Close this tab, wait two minutes, then open AirFare again."));
+  }
+  for (const k of KEYS) $("#" + k).value = "";
+  const flags = Object.fromEntries(cfg.routes.map(r => [r.id, r._linkOnly]));
+  cfg = data.config; cfg.routes.forEach(r => r._linkOnly = flags[r.id]);
+  if (!cfg.routes.length) cfg.routes.push(newRoute(false));
+  view = data.preview; svc = data.service || svc; dirty = false; render();
+}
+
+function setBusy(task) {
+  busy = task;
+  for (const id of ["test-all", "run", "save"]) $("#" + id).disabled = !!task;
+  document.querySelectorAll("[data-act=test]").forEach(b => b.disabled = !!task);
+}
+
+async function testLinks(routeId) {
+  try {
+    setBusy("test");
+    say("Testing links… this takes about {n} seconds", "", {n: (cfg.wait_seconds || 20) + 15});
+    const data = await api("/api/test", {config: payload(), route_id: routeId || null});
+    for (const p of data.pages) tests[`${p.route_id}|${p.key}|${p.source}`] = p;
+    setBusy(null);
+    renderPages();
+    const parts = [];
+    for (const src of [...new Set(data.pages.map(p => p.source))]) {
+      const mine = data.pages.filter(p => p.source === src);
+      const good = mine.filter(p => p.status === "ok" && p.cheapest).length;
+      let line = t("{source}: {good} of {total} show prices", {source: src, good, total: mine.length});
+      const notes = [...new Set(mine.filter(p => !(p.status === "ok" && p.cheapest)).map(p => t(p.note || p.status)))];
+      if (notes.length) line += ` (${notes.slice(0, 2).join("; ")})`;
+      parts.push(line + ".");
+    }
+    if (data.limits) parts.push(data.limits);
+    const allGood = data.pages.every(p => p.status === "ok" && p.cheapest);
+    msg(parts.join(" "), !data.pages.length ? "" : allGood ? "good" : "err");
+    refreshSession();
+  } catch (e) { setBusy(null); msg(e.message, "err"); }
+}
+
+async function startTask(path, key) {
+  try {
+    if (path === "/api/run" && dirty) await save();
+    await api(path, {});
+    setBusy("check");
+    say(key);
+    poll();
+  } catch (e) { msg(e.message, "err"); }
+}
+
+async function poll() {
+  const s = await api("/api/status").catch(() => null);
+  if (s && s.task) { setTimeout(poll, 3000); return; }
+  setBusy(null);
+  if (s) {
+    showLatest(s.latest);
+    const lt = s.last_task || {};
+    if (lt.task === "check") {
+      const kind = lt.ok ? {0: "good", 4: ""}[lt.result.code] ?? "err" : "err";
+      if (lt.ok && lt.result.note) msg(t(lt.result.message) + " " + lt.result.note, kind);
+      else if (lt.ok) say(lt.result.message, kind);
+      else msg(t("The check failed: {error}", {error: lt.error}), "err");
+    }
+    refreshSession();
+  }
+}
+
+function showLatest(latest) {
+  if (latest && latest.html) $("#latest").innerHTML = `<p class="muted">${esc(latest.name)}, <a href="latest.html">${esc(t("open the dashboard"))}</a></p>` + latest.html;
+}
+async function refreshSession() {
+  const s = await api("/api/state").catch(() => null);
+  if (s) { lastState = s.state; sessionPill(s.state); extensionStatus(s.state); }
+}
+function showUpdate(u) {
+  const el = $("#update-status");
+  if (!u) return;
+  if (!u.set_up) { el.textContent = t("AirFare {version}.", {version: VERSION}) + " " + t("Update checks aren't set up for this copy of AirFare."); $("#update-check").hidden = true; return; }
+  if (u.newer) { el.innerHTML = `${esc(t("AirFare {version}.", {version: VERSION}))} <a href="${esc(u.url)}" target="_blank" rel="noopener">${esc(t("Version {latest} is available on GitHub.", {latest: u.latest}))}</a>`; return; }
+  el.textContent = t("AirFare {version}.", {version: VERSION}) + " " + (u.error ? t("The last update check failed: {error}", {error: t(u.error)})
+    : u.checked ? t("Up to date (checked {when}).", {when: u.checked.replace("T", " ")}) : t("Not checked yet."));
+}
+async function checkUpdate(force) {
+  if (force) $("#update-status").textContent = t("Checking…");
+  try { showUpdate(await api("/api/update", {force: !!force})); }
+  catch (e) { $("#update-status").textContent = e.message; }
+}
+function sessionPill(state) {
+  const provider = (cfg && cfg.llm_provider) || "claude";
+  const name = {deepseek: "DeepSeek", openai: "ChatGPT", chatgpt: "ChatGPT"}[provider] || "Claude";
+  const slot = provider === "claude" ? state : (state[provider] || {});
+  if (provider === "none") {
+    $("#session").textContent = (state.last_check ? t("Last check {when}.", {when: state.last_check.replace("T", " ")}) + " " : "")
+      + t("No analyst: AirFare's own rules pick the flights.");
+    return;
+  }
+  $("#session").textContent = state.last_check
+    ? t("Last check {when}.", {when: state.last_check.replace("T", " ")}) + " " +
+      (slot.session_id ? t("{name} conversation {id}.", {name, id: slot.session_id.slice(0, 8)}) : t("The {name} conversation starts with the next check.", {name}))
+    : t("No checks yet. The {name} conversation starts with the first one.", {name});
+}
+function showClaude(s) {
+  const el = $("#claude-status"), key = $("#an-status");
+  if (s.key) {       // the Anthropic API key, not the login, was checked
+    key.textContent = s.checking ? "…" : s.logged_in ? t("The key works.") : (s.error || t("Anthropic doesn't accept the key."));
+    return;
+  }
+  if (s.checking) { el.className = "muted"; el.textContent = t("Checking the Claude login…"); }
+  else if (s.logged_in) { el.className = "ok-text"; el.textContent = s.plan ? t("Logged in to Claude ({plan}).", {plan: s.plan}) : t("Logged in to Claude."); }
+  else { el.className = "warn-text"; el.textContent = s.error || t("Not logged in yet. Press Log in to Claude and sign in with your Claude account."); }
+}
+async function claudeStatus() {
+  claudeLast = {checking: true, key: claudeMode === "key"}; showClaude(claudeLast);
+  try { claudeLast = await api("/api/claude", {mode: claudeMode}); }
+  catch (e) { claudeLast = {logged_in: false, error: e.message, key: claudeMode === "key"}; }
+  showClaude(claudeLast);
+}
+
+async function init() {
+  const s = await api("/api/state");
+  cfg = s.config; view = s.preview; svc = s.service || {}; extLatest = s.extension_latest; lastState = s.state;
+  if (s.currencies) CURRENCIES = s.currencies;
+  BROWSERS = s.browsers || {}; VERSION = s.version || ""; LIMITS = s.limits || {};
+  $("#tray-note").hidden = s.tray_available !== false;
+  $("#tray").disabled = s.tray_available === false;
+  LANG = cfg.language || LANG; document.documentElement.lang = LANG;
+  if (!cfg.routes.length) { cfg.routes.push(newRoute(false)); $("#intro").hidden = false; dirty = true; }
+  cfg.routes.forEach(r => r._linkOnly = isLinkOnly(r));
+  $("#domains").innerHTML = s.extension_hosts.map(h => `<option value="${esc(h)}">`).join("");
+  render(); sessionPill(s.state); extensionStatus(s.state); showLatest(s.latest); showUpdate(s.update);
+  if (cfg.update_check !== false && s.update && s.update.set_up) checkUpdate(false);   // only asks GitHub once a day
+  if (selectedAnalyst() === "claude") claudeStatus();
+  if (selectedAnalyst() === "chatgpt") chatgptStatus();
+  if (s.task) { setBusy(s.task); say("A {task} is running…", "", {task: t(s.task)}); poll(); }
+  else say(dirty ? "Fill in your first route, then press Save." : "Saved. AirFare checks these on the schedule below.");
+  if (dirty) changed();
+}
+
+$("#add-route").onclick = () => { const r = newRoute(false); cfg.routes.push(r); $("#routes").appendChild(routeCard(r)); changed(); };
+$("#add-link").onclick = () => { const r = newRoute(true); r._linkOnly = true; cfg.routes.push(r); $("#routes").appendChild(routeCard(r)); changed(); };
+for (const k of SETTINGS) $("#" + k).addEventListener("input", changed);
+document.querySelectorAll("#money input").forEach(i => i.addEventListener("change", onMoney));
+$("#other-currency").addEventListener("change", () => { cfg.currency = $("#other-currency").value; renderMoney(); changed(); });
+document.querySelectorAll(".kind input").forEach(i => i.addEventListener("input", () => {
+  i.closest(".kind").classList.toggle("off", !$("[data-on]", i.closest(".kind")).checked); changed();
+}));
+$("#alert_no_self_transfer").addEventListener("change", changed);
+document.querySelectorAll("[data-src]").forEach(c => c.addEventListener("change", () => { renderSources(); changed(); }));
+document.querySelectorAll("[data-llm]").forEach(r => r.addEventListener("change", () => {
+  renderAnalyst(); changed();
+  if (selectedAnalyst() === "claude") claudeStatus();
+  if (selectedAnalyst() === "chatgpt") chatgptStatus();
+}));
+document.querySelectorAll("[data-gpt]").forEach(b => b.addEventListener("click", () => {
+  gptMode = b.dataset.gpt; renderAnalyst(); changed();
+  if (gptMode === "chatgpt") chatgptStatus();
+}));
+document.querySelectorAll("[data-claude]").forEach(b => b.addEventListener("click", () => {
+  claudeMode = b.dataset.claude; renderAnalyst(); changed(); claudeStatus();
+}));
+$("#an-check").onclick = async () => {
+  const b = $("#an-status"); b.textContent = "…";
+  try {
+    const a = await api("/api/anthropic", {key: $("#anthropic_api_key").value.trim()});
+    b.textContent = a.error ? t(a.error) : t("The key works.");
+  } catch (e) { b.textContent = e.message; }
+};
+$("#chatgpt-recheck").onclick = chatgptStatus;
+$("#chatgpt-login").onclick = async () => {
+  try {
+    await api("/api/chatgpt-login", {});
+    say("A ChatGPT sign-in window opened. Sign in there, then press Check again.", "good");
+  } catch (e) { msg(e.message, "err"); }
+};
+$("#oa-check").onclick = async () => {
+  const b = $("#oa-status"); b.textContent = "…";
+  try {
+    const a = await api("/api/openai", {key: $("#openai_api_key").value.trim()});
+    b.textContent = a.error ? t(a.error) : t("The key works.");
+  } catch (e) { b.textContent = e.message; }
+};
+document.querySelectorAll("[data-sched]").forEach(r => r.addEventListener("change", () => { renderSchedule(); changed(); }));
+$("#interval_hours").addEventListener("input", renderSchedule);
+document.querySelectorAll("[data-savekey]").forEach(b => b.onclick = () => saveKey(b.dataset.savekey));
+document.querySelectorAll("[data-clear]").forEach(b => b.onclick = () => removeKey(b.dataset.clear));
+KEYS.forEach(k => $("#" + k).addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); saveKey(k); } }));
+$("#ds-check").onclick = async () => {
+  const b = $("#ds-balance"); b.textContent = "…";
+  try {
+    const a = await api("/api/deepseek", {key: $("#deepseek_api_key").value.trim()});
+    b.textContent = a.error ? t(a.error) : a.balance + (a.available === false ? " (" + t("not enough credit") + ")" : "");
+  } catch (e) { b.textContent = e.message; }
+};
+$("#claude-login").onclick = async () => {
+  try {
+    await api("/api/claude-login", {});
+    say("A Claude login window opened. Sign in there, then press Check again.", "good");
+  } catch (e) { msg(e.message, "err"); }
+};
+$("#claude-recheck").onclick = claudeStatus;
+$("#copy-ext-url").onclick = async () => {
+  const page = $("#ext-page").textContent;
+  try { await navigator.clipboard.writeText(page); say("Copied. Paste it into the browser's address bar.", "good"); }
+  catch (e) { msg(t("Type {page} into the browser's address bar.", {page})); }
+};
+$("#browser").addEventListener("change", () => { renderBrowser(); changed(); });
+$("#limits").addEventListener("change", onLimits);
+$("#tray").addEventListener("change", () => { renderSchedule(); changed(); });
+$("#update_check").addEventListener("change", changed);
+$("#update-check").onclick = () => checkUpdate(true);
+$("#show-ext").onclick = () => api("/api/extension-folder", {browser: $("#browser").value}).catch(e => msg(e.message, "err"));
+$("#serp-check").onclick = async () => {
+  const q = $("#serp-quota"); q.textContent = "…";
+  try {
+    const a = await api("/api/serpapi", {key: $("#serpapi_key").value.trim()});
+    q.textContent = a.error ? t(a.error) : `${a.total_searches_left ?? a.plan_searches_left ?? "?"} (${a.plan_name || t("plan")})`;
+  } catch (e) { q.textContent = e.message; }
+};
+$("#save").onclick = async () => { try { await save(); say("Saved. AirFare checks these on the schedule below.", "good"); } catch (e) { msg(e.message, "err"); } };
+$("#test-all").onclick = () => testLinks(null);
+$("#run").onclick = () => startTask("/api/run", "Running a full check: opening pages, waiting for prices, asking your analyst…");
+setInterval(() => api("/api/heartbeat", {}).catch(() => say("AirFare's local server has stopped. Open AirFare again.", "err")), 20000);
+window.addEventListener("beforeunload", e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+translateStatic();
+init().catch(e => msg(e.message, "err"));
+</script>
+<!--NAV_SCRIPT-->
+</body>
+</html>

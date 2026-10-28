@@ -1,0 +1,2 @@
+# The shell scripts run on macOS and Linux: never with Windows line endings, even in a Windows checkout.
+*.sh text eol=lf

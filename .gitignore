@@ -1,0 +1,11 @@
+.venv/
+data/
+dist/
+__pycache__/
+.pytest_cache/
+*.exe
+*.broken
+*.tmp
+*.pyc
+.env
+.env.*
