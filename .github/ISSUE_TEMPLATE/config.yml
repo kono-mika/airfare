@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/kono-mika/airfare/security/advisories/new
+    about: A private report that only the maintainer sees. Please don't open a public issue for security problems.
