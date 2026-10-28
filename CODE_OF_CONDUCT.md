@@ -12,8 +12,8 @@ private information, and spam or promotion unrelated to the project.
 
 ## Reporting
 
-To report a comment to GitHub's moderators, use \*\*Report content\*\* in its \*\*⋯\*\* menu.  To reach the
-maintainer about anything else, open an issue asking for a private without the details.
+To report a comment to GitHub's moderators, use **Report content** in its **⋯** menu. To reach the
+maintainer about anything else, open an issue asking for a private channel, without the details.
 
 ## Enforcement
 
