@@ -1,0 +1,89 @@
+name: Bug report
+description: Something in AirFare doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Security problems go through private reporting instead: see SECURITY.md.
+        **Before pasting anything, remove API keys, personal routes, names and file paths.**
+  - type: input
+    id: version
+    attributes:
+      label: AirFare version
+      description: Shown in Settings under Fine-tuning → Updates.
+      placeholder: "1.4.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: system
+    attributes:
+      label: System
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS
+        - Linux
+    validations:
+      required: true
+  - type: checkboxes
+    id: sources
+    attributes:
+      label: Price sources switched on
+      options:
+        - label: Skyscanner (browser extension)
+        - label: Aviasales (browser extension)
+        - label: Google Flights (SerpApi)
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser the extension runs in
+      options:
+        - Not using the extension
+        - Chrome
+        - Edge
+        - Brave
+        - Opera
+        - Firefox
+  - type: dropdown
+    id: analyst
+    attributes:
+      label: AI analyst
+      options:
+        - No analyst
+        - Claude (Anthropic API key)
+        - Claude (Claude account)
+        - ChatGPT (ChatGPT account)
+        - ChatGPT (OpenAI API key)
+        - DeepSeek
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+  - type: textarea
+    id: log
+    attributes:
+      label: Log or doctor output (optional)
+      description: >-
+        The end of data/logs/airfare.log, or the output of `python -m airfare doctor`
+        (Windows: `.venv\Scripts\python -m airfare doctor` in the AirFare folder).
+        Check it for keys, routes and paths first.
+      render: text
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed API keys, personal details and file paths from everything above.
+          required: true

@@ -1,0 +1,30 @@
+name: Feature request
+description: An idea that would make AirFare more useful.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The situation or problem, before any solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: How AirFare could help. Screenshots or sketches are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Fits AirFare's scope
+      description: See "What AirFare won't accept" in CONTRIBUTING.md.
+      options:
+        - label: This doesn't involve bypassing robot checks, hiding automation, raising the page limits or running AirFare for other people.
+          required: true
