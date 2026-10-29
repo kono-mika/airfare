@@ -1134,6 +1134,57 @@ _LIMITS = {
          "{n} страниц Skyscanner и Aviasales пропущено: лимиты уровня «{level}» разрешают {max} за проверку."),
 }
 
+# ----- 1.5.0: updates that never lose data ------------------------------------------------------------------
+_UPDATES = {
+    "Backups before updates": ("Copias antes de actualizar", "Резервные копии перед обновлениями"),
+    "Before an update changes your data, AirFare copies it here. The newest 3 are kept, and Start over leaves them alone.":
+        ("Antes de que una actualización cambie tus datos, AirFare los copia aquí. Se guardan las 3 más recientes, "
+         "y Empezar de nuevo no las toca.",
+         "Перед тем как обновление изменит ваши данные, AirFare копирует их сюда. Хранятся 3 последние копии, "
+         "и «Начать заново» их не трогает."),
+    "AirFare {version}, saved {when}": ("AirFare {version}, guardada el {when}", "AirFare {version}, сохранена {when}"),
+    "No backups yet.": ("Aún no hay copias.", "Резервных копий пока нет."),
+    "Tick the backups to delete": ("Marca las copias que borrar", "Отметьте копии, которые нужно удалить"),
+    "Delete {n} backup|Delete {n} backups": ("Borrar {n} copia|Borrar {n} copias",
+                                             "Удалить {n} копию|Удалить {n} копии|Удалить {n} копий"),
+    "Delete every backup": ("Borrar todas las copias", "Удалить все копии"),
+    "Delete these backups? AirFare can't go back to them afterwards.":
+        ("¿Borrar estas copias? Después AirFare no podrá volver a ellas.",
+         "Удалить эти копии? Потом AirFare не сможет к ним вернуться."),
+    "Delete every backup? AirFare can't go back to them afterwards.":
+        ("¿Borrar todas las copias? Después AirFare no podrá volver a ellas.",
+         "Удалить все копии? Потом AirFare не сможет к ним вернуться."),
+    "To go back to a backup, close AirFare and copy the files in it into the data folder.":
+        ("Para volver a una copia, cierra AirFare y copia sus archivos en la carpeta data.",
+         "Чтобы вернуться к копии, закройте AirFare и скопируйте её файлы в папку data."),
+    "Pick the backups to delete": ("Elige las copias que borrar", "Выберите копии для удаления"),
+    "Deleted {n} backup.|Deleted {n} backups.": ("Borrada {n} copia.|Borradas {n} copias.",
+                                                 "Удалена {n} копия.|Удалено {n} копии.|Удалено {n} копий."),
+    "This data was written by AirFare {version}; install that version or newer":
+        ("Estos datos los escribió AirFare {version}; instala esa versión o una más nueva",
+         "Эти данные записал AirFare {version}; установите эту версию или более новую"),
+    "Quit AirFare: tray icon → Quit AirFare.": ("Cierra AirFare: icono de la bandeja → Salir de AirFare.",
+                                                "Закройте AirFare: значок в трее → «Выйти из AirFare»."),
+    "Download AirFare.zip from the release page.": ("Descarga AirFare.zip desde la página de la versión.",
+                                                    "Скачайте AirFare.zip со страницы выпуска."),
+    "Unzip it into this same folder, {folder}, and choose to replace the files. Never into a new folder: your data stays in this one.":
+        ("Descomprímelo en esta misma carpeta, {folder}, y elige reemplazar los archivos. Nunca en una carpeta "
+         "nueva: tus datos se quedan en esta.",
+         "Распакуйте его в эту же папку, {folder}, и выберите замену файлов. Не в новую папку: ваши данные "
+         "остаются в этой."),
+    "Double-click AirFare.exe. It backs up your data and finishes the update.":
+        ("Haz doble clic en AirFare.exe. Hace una copia de tus datos y termina la actualización.",
+         "Дважды щёлкните AirFare.exe. Он сделает резервную копию данных и завершит обновление."),
+    "Run sh install.sh in this folder. It backs up your data and finishes the update.":
+        ("Ejecuta sh install.sh en esta carpeta. Hace una copia de tus datos y termina la actualización.",
+         "Запустите sh install.sh в этой папке. Он сделает резервную копию данных и завершит обновление."),
+    "If Settings then says the browser runs an older extension, reload it (Firefox: sign and install the new .xpi).":
+        ("Si después Ajustes dice que el navegador usa una extensión anterior, recárgala (Firefox: firma e instala "
+         "el nuevo .xpi).",
+         "Если затем Настройки сообщат, что браузер использует старую версию расширения, перезагрузите её "
+         "(Firefox: подпишите и установите новый .xpi)."),
+}
+
 T: dict[str, dict] = {k: {"es": es, "ru": ru} for k, (es, ru) in
                       {**_PAIRS, **_MESSAGES, **_MORE, **_HTML, **_V14, **_PUBLIC, **_FIREFOX, **_REVIEW,
-                       **_LIMITS}.items()}
+                       **_LIMITS, **_UPDATES}.items()}

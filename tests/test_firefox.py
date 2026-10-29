@@ -220,19 +220,29 @@ def test_both_builds_open_exactly_the_pages_airfare_allows(build):
 @pytest.mark.skipif(not shutil.which("node"), reason="needs Node.js to run the extension's own code")
 @pytest.mark.parametrize("build", BUILDS)
 def test_both_builds_validjob_agrees_with_airfare_when_run(build, tmp_path):
+    # Nothing in the run waits on anything: no AirFare port (fetch fails at once), no timers, no stdin (a child
+    # holding the test runner's stdin pipe could hang on Windows), and the answer goes to a file before an
+    # explicit exit, so the result never depends on how fast the machine is. The timeout only guards a hang.
     folder = BUILDS[build]
+    answer = tmp_path / "answer.json"
     stub = """const manifest = %s;
 const api = {runtime: {getManifest: () => manifest, onInstalled: {addListener() {}}, onStartup: {addListener() {}}},
              alarms: {onAlarm: {addListener() {}}, get: () => Promise.resolve({}), create() {}}};
 globalThis.chrome = api; globalThis.browser = api;
+globalThis.fetch = () => Promise.reject(new Error("no network in this test"));
+globalThis.setTimeout = globalThis.setInterval = () => { throw new Error("no timers in this test"); };
 """ % (folder / "manifest.json").read_text(encoding="utf-8")
-    check = "\nconsole.log(JSON.stringify(%s.map((url) => validJob({id: 'x', pages: [{url}], matches: []}))));\n" % \
-            json.dumps(URLS)
+    check = ("\nrequire('fs').writeFileSync(%s, JSON.stringify(%s.map((url) => "
+             "validJob({id: 'x', pages: [{url}], matches: []}))));\nprocess.exit(0);\n") % \
+            (json.dumps(str(answer)), json.dumps(URLS))
     script = tmp_path / "check.js"
     script.write_text(stub + (folder / "background.js").read_text(encoding="utf-8") + check, encoding="utf-8")
-    out = subprocess.run(["node", str(script)], capture_output=True, text=True, timeout=30)
-    assert out.returncode == 0, out.stderr
-    assert json.loads(out.stdout) == [extension.allowed(u) for u in URLS]
+    log = tmp_path / "node.log"
+    with open(log, "wb") as out:
+        code = subprocess.run(["node", str(script)], stdin=subprocess.DEVNULL, stdout=out, stderr=out,
+                              timeout=600).returncode
+    assert code == 0, log.read_text(encoding="utf-8", errors="replace")
+    assert json.loads(answer.read_text(encoding="utf-8")) == [extension.allowed(u) for u in URLS]
 
 
 # ----- Settings ---------------------------------------------------------------------------------

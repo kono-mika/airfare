@@ -1,0 +1,18 @@
+{
+  "check": {
+    "time": "2026-10-28T08:00",
+    "order": ["fx01ab", "fx02cd"],
+    "html": {
+      "en": {"title": "AirFare", "checked": "Checked 28 Oct 2026, 08:00", "banner": "", "take": "<p>Invented take: route one is a little cheaper.</p>",
+             "analysis": "", "footer": "<a href=\"2026-10-28_080000-prices.md\">Price document</a>"}
+    }
+  },
+  "routes": {
+    "fx01ab": {"name": "Invented route one", "origin": "ZZAA", "destination": "ZZBB", "checked": "2026-10-28T08:00",
+               "html": {"en": "<section>Invented route one: €230</section>"}},
+    "fx02cd": {"name": "Invented route two", "origin": "ZZCC", "destination": "ZZDD", "checked": "2026-10-28T08:00",
+               "html": {"en": "<section>Invented route two: €640</section>"}},
+    "fx03ef": {"name": "Invented route three, no longer tracked", "origin": "ZZBB", "destination": "ZZCC", "checked": "2026-10-02T08:00",
+               "html": {"en": "<section>Invented route three: €99</section>"}}
+  }
+}

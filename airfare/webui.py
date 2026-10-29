@@ -18,11 +18,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from . import (__version__, analyst, brand, chatgpt, cleanup, dashboard, deepseek, extension, historypage, i18n,
-               limits, links, markup, money, openai_api, platform, pricelog, report, research, runner, serpapi, service,
-               tray, update)
+               limits, links, markup, migrate, money, openai_api, platform, pricelog, report, research, runner, serpapi,
+               service, tray, update)
 from .i18n import Problem
-from .config import (ALERT_KINDS, KEYS, LIMITS, REPORTS_DIR, SOURCES, WEBUI_PORT, load_config, load_state,
-                     save_config)
+from .config import (ALERT_KINDS, KEYS, LIMITS, PROJECT_DIR, REPORTS_DIR, SOURCES, WEBUI_PORT, load_config,
+                     load_state, save_config)
 from .urls import CABINS, aviasales_url, clean_ages, plan_pages, route_label, route_pages
 
 log = logging.getLogger(__name__)
@@ -31,6 +31,7 @@ PACKAGE = Path(__file__).parent
 STATIC = PACKAGE / "static"
 IDLE_LIMIT = 120          # seconds without a heartbeat from an open form before the server exits
 OUTDATED = "AirFare was updated. Close this tab and open AirFare Settings again."
+SYSTEM = "windows" if platform.WINDOWS else "macos" if platform.MACOS else "linux"
 KEY_RE = re.compile(r"^[A-Za-z0-9_\-]{8,200}$")
 
 
@@ -550,7 +551,9 @@ class Handler(BaseHTTPRequestHandler):
                                      for k, b in extension.BROWSERS.items() for on in [extension.chrome_path(k) is not None]},
                         "service": service.status(), "currencies": money.CURRENCIES, "tray_available": tray.available(),
                         "limits": limits.LEVELS,
-                        "update": update.cached(state), "version": __version__})
+                        "update": update.cached(state), "version": __version__, "data_version": migrate.status(),
+                        # where the update steps say to unzip a new release, and which steps they are
+                        "folder": str(PROJECT_DIR), "system": SYSTEM})
         elif self.path == "/api/status":
             self._json({"task": TASKS.current, "last_task": TASKS.last, "latest": latest_analysis()})
         elif self.path in ("/cleanup", "/cleanup.html"):

@@ -106,6 +106,7 @@ button.linkish { align-self: flex-start; border: 0; background: none; padding: 0
 .badge.skip { text-decoration: line-through; }
 .muted { color: var(--muted); font-size: 13px; }
 .warn-text { color: var(--warn); font-size: 13px; }
+.update-steps { margin: 8px 0 4px; padding-left: 22px; font-size: 14px; } .update-steps li { margin: 3px 0; overflow-wrap: anywhere; }
 .ok-text { color: var(--ok); font-size: 13px; }
 .err-text { color: var(--bad); font-size: 13px; }
 
@@ -177,6 +178,7 @@ code { background: var(--soft); border-radius: 5px; padding: 1px 6px; font-size:
       <div>
         <p class="tagline" data-i18n>Watches the flights you choose and tells you when one gets cheaper.</p>
         <p class="status" id="session">…</p>
+        <p class="warn-text" id="data-newer" role="status" hidden></p>
       </div>
       <!--SKY-->
     </div>
@@ -486,6 +488,7 @@ code { background: var(--soft); border-radius: 5px; padding: 1px 6px; font-size:
           <span class="muted" id="update-status"></span>
           <button class="btn small" id="update-check" data-i18n>Check for updates</button>
         </div>
+        <ol class="update-steps" id="update-steps" hidden></ol>
         <label class="opt"><input type="checkbox" id="update_check">
           <span data-i18n>Look for a newer AirFare when Settings opens (one anonymous request to github.com, at most once a day)</span></label>
       </div>
@@ -582,7 +585,7 @@ code { background: var(--soft); border-radius: 5px; padding: 1px 6px; font-size:
 const H = {"Content-Type": "application/json", "X-AirFare": "1"};
 const SETTINGS = ["domain", "wait_seconds", "max_pages", "model", "session_max_k", "deepseek_model", "openai_model",
                   "interval_hours", "alert_max_hours", "browser"];
-let BROWSERS = {}, VERSION = "";
+let BROWSERS = {}, VERSION = "", FOLDER = "", SYSTEM = "windows", updateLast = null, dataVersion = {};
 let LIMITS = {}, limitsOk = false;      // the levels' numbers (limits.py); whether Extended's warning was accepted
 const NUMERIC = ["wait_seconds", "max_pages", "session_max_k", "interval_hours", "alert_max_hours"];
 const KEYS = ["serpapi_key", "deepseek_api_key", "openai_api_key", "anthropic_api_key"];
@@ -631,6 +634,8 @@ window.airfareLanguage = lang => {     // called by the EN · ES · RU links in 
   if (lastState) { sessionPill(lastState); extensionStatus(lastState); }
   if (claudeLast) showClaude(claudeLast);
   if (gptLast) showChatGPT(gptLast);
+  if (updateLast) showUpdate(updateLast);
+  showDataVersion();
   if (lastMsg[0]) say(lastMsg[0], lastMsg[1], lastMsg[2]);   // a message from a website or API stays as it was
 };
 
@@ -1141,8 +1146,28 @@ async function refreshSession() {
   const s = await api("/api/state").catch(() => null);
   if (s) { lastState = s.state; sessionPill(s.state); extensionStatus(s.state); }
 }
+// When a newer release is out: how to update without losing anything (README, "Update AirFare"), in short.
+function updateSteps(u) {
+  const box = $("#update-steps");
+  box.hidden = !(u && u.newer);
+  if (box.hidden) return;
+  const steps = [t("Quit AirFare: tray icon → Quit AirFare."),
+    t("Download AirFare.zip from the release page."),
+    t("Unzip it into this same folder, {folder}, and choose to replace the files. Never into a new folder: your data stays in this one.", {folder: FOLDER}),
+    SYSTEM === "windows" ? t("Double-click AirFare.exe. It backs up your data and finishes the update.")
+                         : t("Run sh install.sh in this folder. It backs up your data and finishes the update."),
+    t("If Settings then says the browser runs an older extension, reload it (Firefox: sign and install the new .xpi).")];
+  box.innerHTML = steps.map(x => `<li>${esc(x)}</li>`).join("");
+}
+function showDataVersion() {
+  const el = $("#data-newer");
+  el.hidden = !dataVersion.newer;
+  el.textContent = dataVersion.newer ? t("This data was written by AirFare {version}; install that version or newer", {version: dataVersion.app}) : "";
+}
 function showUpdate(u) {
   const el = $("#update-status");
+  updateLast = u || updateLast;
+  updateSteps(u);
   if (!u) return;
   if (!u.set_up) { el.textContent = t("AirFare {version}.", {version: VERSION}) + " " + t("Update checks aren't set up for this copy of AirFare."); $("#update-check").hidden = true; return; }
   if (u.newer) { el.innerHTML = `${esc(t("AirFare {version}.", {version: VERSION}))} <a href="${esc(u.url)}" target="_blank" rel="noopener">${esc(t("Version {latest} is available on GitHub.", {latest: u.latest}))}</a>`; return; }
@@ -1190,6 +1215,7 @@ async function init() {
   cfg = s.config; view = s.preview; svc = s.service || {}; extLatest = s.extension_latest; lastState = s.state;
   if (s.currencies) CURRENCIES = s.currencies;
   BROWSERS = s.browsers || {}; VERSION = s.version || ""; LIMITS = s.limits || {};
+  FOLDER = s.folder || ""; SYSTEM = s.system || "windows"; dataVersion = s.data_version || {}; showDataVersion();
   $("#tray-note").hidden = s.tray_available !== false;
   $("#tray").disabled = s.tray_available === false;
   LANG = cfg.language || LANG; document.documentElement.lang = LANG;

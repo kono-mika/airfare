@@ -86,6 +86,21 @@ Cada combinación de fechas usa una búsqueda por comprobación. En **Cuándo co
 
 Listo. AirFare comprueba los precios cada vez que enciendes el ordenador (o con el horario que elijas) y muestra una notificación **LOW PRICE** cuando un precio baja.
 
+## 6. Actualizar a una versión nueva
+
+Una actualización conserva tus ajustes, claves, rutas, historial de precios, conversaciones y todo lo demás de la carpeta `data`. Antes de cambiar nada allí, AirFare hace una copia en `data\backups`.
+
+1. En Ajustes, **Ajustes finos → Actualizaciones → Buscar actualizaciones** te dice cuándo hay una versión nueva (Ajustes muestra entonces estos pasos con el enlace).
+2. Cierra AirFare: icono del área de notificación → **Salir de AirFare** (si usas el icono).
+3. Descarga `AirFare.zip` de la página [Releases](https://github.com/kono-mika/airfare/releases).
+4. Descomprímelo en la **misma** carpeta de AirFare y elige **reemplazar los archivos**. Nunca en una carpeta nueva: tus datos se quedan en la anterior.
+5. Haz doble clic en **AirFare.exe**. Hace una copia de tus datos, termina la actualización en su ventana de instalación y abre Ajustes. Si algo falla, tus datos quedan intactos y la ventana dice qué hacer.
+   En un Mac o en Linux, ejecuta en su lugar `sh install.sh` en la carpeta de AirFare.
+6. Si Ajustes dice que el navegador usa una extensión anterior, recárgala allí (Firefox: firma e instala el nuevo `.xpi`).
+
+- **¿Lo descomprimiste en una carpeta nueva por error?** Cierra las dos copias, mueve la carpeta `data` de la carpeta anterior a la nueva y abre la copia nueva.
+- **Volver atrás:** descomprime la versión anterior sobre la carpeta del mismo modo. Para recuperar tus datos tal como estaban antes de una actualización, cierra AirFare y copia los archivos de una copia de `data\backups` en `data`.
+
 ## Conviene saber
 
 - **Pestañas del panel:** cada ruta tiene su propia pestaña. Si cambias una ruta (por ejemplo, le das la vuelta), su comprobación anterior se queda en su pestaña hasta que la quites.

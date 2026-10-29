@@ -2,11 +2,21 @@
 # shortcuts (desktop, Start menu, Startup), then a health check. AirFare.exe runs this the first time it starts;
 # you can also run it yourself from the AirFare folder:  powershell -ExecutionPolicy Bypass -File .\install.ps1
 # -Quiet: no questions and no Settings page at the end (for scripted installs).
-param([switch]$Quiet)
+# -Upgrade: AirFare.exe found a new release unzipped over this folder. The same steps finish the update: the
+# previous version's background checker and Settings server stop, files it left behind go (MANIFEST.txt), the
+# packages update, the data is backed up and migrated (airfare\migrate.py), and the checker starts again.
+# Running this again without -Upgrade does the same; the data folder is never deleted or replaced.
+param([switch]$Quiet, [switch]$Upgrade)
 $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
 Set-Location -LiteralPath $root      # -LiteralPath everywhere: a folder name may contain [ or ]
-$Host.UI.RawUI.WindowTitle = "AirFare setup"
+$Host.UI.RawUI.WindowTitle = if ($Upgrade) { "AirFare update" } else { "AirFare setup" }
+$version = ""
+$found = Select-String -LiteralPath (Join-Path $root "airfare\__init__.py") -Pattern '__version__ = "([^"]+)"' -ErrorAction SilentlyContinue
+if ($found) { $version = $found.Matches[0].Groups[1].Value }
+# What a failed update says: nothing in the data folder has changed, and how to try again or go back.
+$untouched = "Your data is untouched. Fix the problem above and double-click AirFare.exe again, or go back by " +
+             "unzipping the previous release over this folder."
 
 function Step([string]$text) { Write-Host ""; Write-Host "== $text" -ForegroundColor Cyan }
 function Done([int]$code) {
@@ -44,7 +54,7 @@ function Find-Python {
 }
 
 try {
-    Write-Host "Setting up AirFare in $root"
+    if ($Upgrade) { Write-Host "Updating AirFare in $root to version $version" } else { Write-Host "Setting up AirFare $version in $root" }
 
     # Some packages nest files about 150 characters deep, and Windows refuses paths over 260 characters
     # unless long paths are switched on.
@@ -97,10 +107,22 @@ try {
         & $python -m venv (Join-Path $root ".venv")
         if (-not (Test-Path -LiteralPath $venvPy)) { Fail "Couldn't create AirFare's Python environment in $root\.venv." }
     }
+    # A background checker or Settings page still running the previous version holds its files open, and files
+    # the previous version had but this one doesn't would stay behind: both are handled before pip runs.
+    & $venvPy -m airfare.upgrade prepare
+    if ($LASTEXITCODE -ne 0) { Write-Host "Couldn't stop the previous version everywhere; quit AirFare (tray icon, Quit AirFare) if the next step fails." -ForegroundColor Yellow }
     Write-Host "Installing packages. This takes a few minutes (the Claude Agent SDK is about 130 MB)..."
     & $venvPy -m pip install --upgrade pip --quiet --disable-pip-version-check
     & $venvPy -m pip install -r (Join-Path $root "requirements.txt") --quiet --disable-pip-version-check
-    if ($LASTEXITCODE -ne 0) { Fail "Installing packages failed. Check the internet connection and start AirFare.exe again." }
+    if ($LASTEXITCODE -ne 0) {
+        if ($Upgrade) { Fail "Installing packages failed, so AirFare wasn't updated. Check the internet connection and quit AirFare (tray icon, Quit AirFare). $untouched" }
+        Fail "Installing packages failed. Check the internet connection and start AirFare.exe again."
+    }
+
+    Step "Your data"
+    # Backed up to data\backups first, then brought up to this version's format; on any problem it is put back.
+    & $venvPy -m airfare migrate
+    if ($LASTEXITCODE -ne 0) { Fail "Updating the data folder failed. $untouched" }
 
     Step "Launcher and shortcuts"
     $launcher = Join-Path $root "AirFare.exe"
@@ -132,18 +154,29 @@ try {
     if (Test-Path -LiteralPath $old) { Remove-Item -LiteralPath $old; Write-Host "Removed the old shortcut $old" }
     # Notifications show as AirFare, and airfare: links (from notifications and saved pages) open AirFare.
     & $venvPy -c "from airfare import links, notify; notify.app_id(); links.register()"
+    # Records what is installed (AirFare.exe compares it with the code) and starts the background checker again
+    # if the settings need it running.
+    & $venvPy -m airfare.upgrade finish
+    if ($LASTEXITCODE -ne 0) { Fail "Finishing the setup failed. $untouched" }
 
     Step "Health check"
     & $venvPy -m airfare doctor
 
     Write-Host ""
     if ($Quiet) { Write-Host "AirFare is installed." -ForegroundColor Green; exit 0 }
+    if ($Upgrade) {
+        Write-Host "AirFare is updated to version $version. Its Settings page is opening in your browser." -ForegroundColor Green
+        Write-Host "Your settings, routes, price history and conversations are kept; the copy made before the update"
+        Write-Host "is in data\backups (Clean up lists it)."
+        Write-Host "If Settings says the browser runs an older extension, reload it there (Firefox: sign and install the new .xpi)."
+    } else {
     Write-Host "AirFare is installed. Its Settings page is opening in your browser." -ForegroundColor Green
     Write-Host "There, in this order:"
     Write-Host "  1. AI analyst: log in to Claude or ChatGPT, paste an API key, or choose 'No analyst'."
     Write-Host "  2. Price sources: load the browser extension (steps shown there) and/or paste a SerpApi key."
     Write-Host "  3. Add your flights, press Save, then Test links."
     Write-Host "Later, open AirFare from its desktop or Start menu icon. It checks prices by itself at every PC start."
+    }
     # Process.Start, not Start-Process: it takes the path literally even with [ ] in a folder name.
     $open = if (Test-Path -LiteralPath $launcher) { New-Object Diagnostics.ProcessStartInfo($launcher, "--settings") }
             else { New-Object Diagnostics.ProcessStartInfo((Join-Path $root ".venv\Scripts\pythonw.exe"), "-m airfare setup") }
@@ -152,5 +185,6 @@ try {
     [void][Diagnostics.Process]::Start($open)
     Done 0
 } catch {
+    if ($Upgrade) { Fail "The update stopped: $_`n$untouched" }
     Fail "Setup stopped: $_"
 }

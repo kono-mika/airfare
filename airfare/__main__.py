@@ -1,4 +1,4 @@
-"""AirFare command line: run | service | test-alert | setup | chat | login | doctor | link."""
+"""AirFare command line: run | service | test-alert | setup | chat | login | doctor | link | migrate."""
 from __future__ import annotations
 
 import argparse
@@ -163,6 +163,25 @@ def cmd_link(args) -> int:
     return cmd_setup(argparse.Namespace(no_open=name == "start", page="settings" if name == "start" else name))
 
 
+def cmd_migrate(args) -> int:
+    """Back up and update the data folder (the install scripts run this; every other command does it too)."""
+    from . import migrate
+    try:
+        result = migrate.at_start()
+    except migrate.MigrationError as e:
+        print(e)
+        return 1
+    found = result["from"]
+    if result["newer"]:
+        print(migrate.NEWER_MESSAGE.format(version=found["app"]) + ". Nothing was changed.")
+    elif result["steps"]:
+        print(f"Updated the data from AirFare {found['app']} to {result['to']['app']}."
+              + (f" Backup: {result['backup']}" if result["backup"] else ""))
+    else:
+        print(f"The data is up to date (AirFare {result['to']['app']}, format {result['to']['schema']}).")
+    return 0
+
+
 def analyst_name(provider: str) -> str:
     return {"deepseek": "DeepSeek", "openai": "ChatGPT (OpenAI API key)", "chatgpt": "ChatGPT (ChatGPT account)",
             "none": "none (AirFare's own rules pick the cheapest and fastest flights)"}.get(provider, "Claude")
@@ -181,6 +200,13 @@ def cmd_doctor(args) -> int:
         print(("  OK   " if good else "  !!   ") + text)
 
     print("AirFare doctor")
+    from . import migrate, upgrade
+    data = migrate.status()
+    if data["newer"]:
+        line(False, data["message"])
+    setup = upgrade.mismatch()
+    if setup:
+        line(False, setup)
     from .extension import BROWSERS, browser_kind, chrome_path
     from .secrets import ACCOUNT
     cfg = load_config()
@@ -280,7 +306,28 @@ def cmd_doctor(args) -> int:
     return 0 if ok else 1
 
 
-def main(argv=None) -> int:
+def _starting(cmd: str, check_install: bool) -> int | None:
+    """Before a command reads anything: the setup matches the code, and the data folder is up to date
+    (migrate.py). An exit code when the command can't go on."""
+    from . import migrate, upgrade
+    problem = upgrade.mismatch() if check_install and cmd not in ("migrate", "doctor") else None
+    if problem:
+        upgrade.note(problem)
+        if sys.stderr:
+            print(problem, file=sys.stderr)
+        return 4
+    if cmd in ("migrate", "login"):
+        return None
+    try:
+        migrate.at_start()
+    except migrate.MigrationError as e:
+        if sys.stderr:
+            print(e, file=sys.stderr)
+        return 1
+    return None
+
+
+def main(argv=None, check_install: bool = False) -> int:
     p = argparse.ArgumentParser(prog="airfare", description=__doc__)
     sub = p.add_subparsers(dest="cmd")
     r = sub.add_parser("run", help="check prices once, now")
@@ -297,17 +344,21 @@ def main(argv=None) -> int:
     sub.add_parser("doctor", help="check the browser, the analyst's login and settings")
     lk = sub.add_parser("link", help="open an airfare: link (what AirFare's desktop entry runs on Linux)")
     lk.add_argument("url", nargs="?", help="airfare:dashboard, airfare:history, airfare:settings or airfare:start")
+    sub.add_parser("migrate", help="back up and update the data folder after an update (the install scripts run it)")
     for stream in (sys.stdout, sys.stderr):
         if stream and hasattr(stream, "reconfigure"):
             stream.reconfigure(errors="replace")   # route names and prices may not fit the console code page
     args = p.parse_args(argv)
     handlers = {"run": cmd_run, "service": cmd_service, "test-alert": cmd_test_alert, "setup": cmd_setup,
-                "chat": cmd_chat, "login": cmd_login, "doctor": cmd_doctor, "link": cmd_link}
+                "chat": cmd_chat, "login": cmd_login, "doctor": cmd_doctor, "link": cmd_link, "migrate": cmd_migrate}
     if not args.cmd:
         p.print_help()
         return 0
+    stop = _starting(args.cmd, check_install)
+    if stop is not None:
+        return stop
     return handlers[args.cmd](args)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(check_install=True))       # python -m airfare: also check that the setup matches the code
