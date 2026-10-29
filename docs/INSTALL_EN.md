@@ -86,6 +86,21 @@ Each date combination uses one search per check. Under **When to check**, AirFar
 
 That's it. AirFare checks prices every time you start your computer (or on the schedule you choose) and shows a **LOW PRICE** notification when a price drops.
 
+## 6. Update to a new version
+
+An update keeps your settings, keys, routes, price history, conversations and everything else in the `data` folder. Before it changes anything there, AirFare makes a copy in `data\backups`.
+
+1. In Settings, **Fine-tuning → Updates → Check for updates** tells you when a new version is out (Settings then shows these steps with the link).
+2. Quit AirFare: tray icon → **Quit AirFare** (if you use the tray icon).
+3. Download `AirFare.zip` from the [Releases](https://github.com/kono-mika/airfare/releases) page.
+4. Unzip it into the **same** AirFare folder and choose to **replace the files**. Never into a new folder: your data stays in the old one.
+5. Double-click **AirFare.exe**. It backs up your data, finishes the update in its setup window and opens Settings. If anything goes wrong, your data is untouched and the window says what to do.
+   On a Mac or on Linux, run `sh install.sh` in the AirFare folder instead.
+6. If Settings says the browser runs an older extension, reload it there (Firefox: sign and install the new `.xpi`).
+
+- **Unzipped into a new folder by mistake?** Close both copies, move the `data` folder from the old folder into the new one, then start the new copy.
+- **Going back:** unzip the previous version over the folder the same way. To return to your data as it was before an update, close AirFare and copy the files from a backup in `data\backups` into `data`.
+
 ## Good to know
 
 - **Dashboard tabs:** each route has its own tab. If you change a route (for example turn it around), its earlier check stays on its own tab until you remove it.

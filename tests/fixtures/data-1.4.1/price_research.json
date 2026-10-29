@@ -1,0 +1,43 @@
+[
+  {
+    "id": "inv0000look1",
+    "time": "2026-10-26T19:30",
+    "analyst": "DeepSeek",
+    "route_id": "fx01ab",
+    "route_name": "Invented route one",
+    "conditions": {"route_id": "fx01ab", "route_name": "Invented route one", "origins": ["ZZAA"], "destinations": ["ZZBB"],
+                   "depart_from": "2027-03-12", "depart_to": "2027-03-14", "return_from": "2027-03-19", "return_to": "2027-03-19",
+                   "adults": 2, "cabin": "economy", "children": [7], "today": "2026-10-26", "currency": "EUR", "language": "en"},
+    "status": "found",
+    "web_search": true,
+    "cost_usd": 0.004,
+    "notes": "Invented note: the lowest fare seen for these dates.",
+    "lowest_price": 199.0,
+    "currency": "EUR",
+    "origin": "ZZAA",
+    "destination": "ZZBB",
+    "depart_date": "2027-03-12",
+    "return_date": "2027-03-19",
+    "observed_on": "2026-09-30",
+    "source_url": "https://example.com/invented-fare-page",
+    "source_name": "Example fares",
+    "quote": "Invented quote: return fares from EUR 199.",
+    "price": 199.0,
+    "price_text": "€199"
+  },
+  {
+    "id": "inv0000look2",
+    "time": "2026-10-27T10:05",
+    "analyst": "DeepSeek",
+    "route_id": "fx02cd",
+    "route_name": "Invented route two",
+    "conditions": {"route_id": "fx02cd", "route_name": "Invented route two", "origins": ["ZZCC"], "destinations": ["ZZDD"],
+                   "depart_from": "2027-05-02", "depart_to": "2027-05-02", "return_from": null, "return_to": null,
+                   "adults": 1, "cabin": "business", "children": [], "today": "2026-10-27", "currency": "EUR", "language": "en"},
+    "status": "no_information",
+    "web_search": true,
+    "cost_usd": 0.003,
+    "notes": null,
+    "reason": "no source named a price for these dates"
+  }
+]
