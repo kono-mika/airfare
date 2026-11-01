@@ -603,7 +603,7 @@ code { background: var(--soft); border-radius: 5px; padding: 1px 6px; font-size:
 const H = {"Content-Type": "application/json", "X-AirFare": "1"};
 const SETTINGS = ["domain", "wait_seconds", "max_pages", "model", "session_max_k", "deepseek_model", "openai_model",
                   "interval_hours", "alert_max_hours", "browser"];
-let BROWSERS = {}, VERSION = "", FOLDER = "", SYSTEM = "windows", updateLast = null, dataVersion = {};
+let BROWSERS = {}, VERSION = "", FOLDER = "", PARENT = "", OTHER_NAME = "", SYSTEM = "windows", updateLast = null, dataVersion = {};
 let LIMITS = {}, limitsOk = false;      // the levels' numbers (limits.py); whether Extended's warning was accepted
 const NUMERIC = ["wait_seconds", "max_pages", "session_max_k", "interval_hours", "alert_max_hours"];
 const KEYS = ["serpapi_key", "deepseek_api_key", "openai_api_key", "anthropic_api_key"];
@@ -1170,6 +1170,8 @@ async function refreshSession() {
   const s = await api("/api/state").catch(() => null);
   if (s) { lastState = s.state; sessionPill(s.state); extensionStatus(s.state); }
 }
+// One argument of a command typed into a terminal, whatever the folder is called.
+function shellArg(text) { return '"' + String(text).replace(/(["$`\\])/g, "\\$1") + '"'; }
 // When a newer release is out: how to update without losing anything (README, "Update AirFare"), in short.
 function updateSteps(u) {
   const box = $("#update-steps");
@@ -1177,9 +1179,11 @@ function updateSteps(u) {
   if (box.hidden) return;
   const steps = [t("Quit AirFare: tray icon → Quit AirFare."),
     t("Download AirFare.zip from the release page."),
-    t("Unzip it into this same folder, {folder}, and choose to replace the files. Never into a new folder: your data stays in this one.", {folder: FOLDER}),
+    ...(OTHER_NAME ? [t("Your AirFare folder is called {name}, but the zip makes a folder called AirFare. Rename yours to AirFare first, or the update ends up in a new folder.", {name: OTHER_NAME})] : []),
+    SYSTEM === "windows" ? t("Extract the zip into the folder that contains your AirFare folder: Extract All, choose {parent} and replace the files. Not into {folder}: that makes a second AirFare folder inside it.", {parent: PARENT, folder: FOLDER})
+                         : t("Don't double-click the zip: on a Mac that makes a new folder, AirFare 2. In a terminal, in the folder with the download, run: {command}", {command: `unzip -o AirFare.zip -d ${shellArg(PARENT)}`}),
     SYSTEM === "windows" ? t("Double-click AirFare.exe. It backs up your data and finishes the update.")
-                         : t("Run sh install.sh in this folder. It backs up your data and finishes the update."),
+                         : t("Then run sh install.sh in your AirFare folder. It backs up your data and finishes the update."),
     t("If Settings then says the browser runs an older extension, reload it (Firefox: sign and install the new .xpi).")];
   box.innerHTML = steps.map(x => `<li>${esc(x)}</li>`).join("");
 }
@@ -1239,7 +1243,7 @@ async function init() {
   cfg = s.config; view = s.preview; svc = s.service || {}; extLatest = s.extension_latest; lastState = s.state;
   if (s.currencies) CURRENCIES = s.currencies;
   BROWSERS = s.browsers || {}; VERSION = s.version || ""; LIMITS = s.limits || {};
-  FOLDER = s.folder || ""; SYSTEM = s.system || "windows"; dataVersion = s.data_version || {}; showDataVersion();
+  FOLDER = s.folder || ""; PARENT = s.parent || ""; OTHER_NAME = s.other_name || ""; SYSTEM = s.system || "windows"; dataVersion = s.data_version || {}; showDataVersion();
   $("#tray-note").hidden = s.tray_available !== false;
   $("#tray").disabled = s.tray_available === false;
   LANG = cfg.language || LANG; document.documentElement.lang = LANG;

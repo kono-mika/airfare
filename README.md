@@ -170,8 +170,9 @@ Two ways to get AirFare onto a PC. Both end with an **AirFare** icon on the desk
 and `AirFare.lnk` in the Startup folder, so it checks prices at every PC start.
 
 - **From a release** (the usual way): download `AirFare.zip` from the
-  [Releases](https://github.com/kono-mika/airfare/releases) page, unzip it into a folder you'll keep (for
-  example `Documents\AirFare`, not Downloads), and double-click **AirFare.exe**. On a PC where AirFare isn't
+  [Releases](https://github.com/kono-mika/airfare/releases) page, extract it into a folder you'll keep (for
+  example `Documents`, not Downloads: the zip makes `Documents\AirFare`), and double-click **AirFare.exe** in
+  there. On a PC where AirFare isn't
   set up yet, it offers to run `install.ps1`. If Windows says *"Windows protected your PC"*, click **More
   info**, then **Run anyway**: the launcher isn't signed by a publisher, so Windows asks once.
 - **From the source code** (this repository, cloned or downloaded as a zip): the repository holds no
@@ -195,7 +196,8 @@ registrations.
 
 ### macOS and Linux
 
-Unzip `AirFare.zip` (or clone this repository) into a folder you'll keep, open a terminal in it and run:
+Extract `AirFare.zip` into a folder you'll keep (it makes an `AirFare` folder there), or clone this repository,
+open a terminal in the AirFare folder and run:
 
 ```sh
 sh install.sh
@@ -288,8 +290,10 @@ copies it to `data/backups/<old version>-<date>-<time>/`.
 1. In Settings, **Fine-tuning → Updates → Check for updates** says whether a newer release is out.
 2. Quit AirFare: tray icon → **Quit AirFare** (if you use the tray icon).
 3. Download `AirFare.zip` from [Releases](https://github.com/kono-mika/airfare/releases).
-4. Unzip it into the **same** AirFare folder and choose to replace the files. Never into a new folder: your
-   data stays in the old one.
+4. Extract the zip into the folder that **contains** your AirFare folder: **Extract All**, choose that parent
+   folder (for example `Documents`), and replace the files. The zip has a top-level `AirFare` folder, so
+   extracting it into the AirFare folder itself would make `AirFare\AirFare`. If your folder has another name,
+   rename it to `AirFare` first: otherwise the update ends up in a new folder, and your data stays in the old one.
 5. Double-click **AirFare.exe**. It sees the new version, backs up the data and finishes the update in its
    setup window (packages, data, shortcuts, the background checker), then opens Settings. If anything fails,
    the window says what to do: your data is either untouched or, once it has been updated, kept and backed up in
@@ -297,29 +301,48 @@ copies it to `data/backups/<old version>-<date>-<time>/`.
 6. If Settings says the browser runs an older extension, reload it there (Firefox: sign and install the new
    `.xpi`, see *Firefox* above).
 
-**macOS and Linux:** the same steps, then run `sh install.sh` in the folder instead of step 5. Until you
-do, `python -m airfare` says *Run sh install.sh to finish the update*, in the terminal and in a notification, and
-stops with exit code 5.
+**macOS and Linux:** the same steps, but don't double-click the zip (on a Mac that makes a new folder, `AirFare 2`).
+In a terminal, in the folder with the download, run this instead of step 4, then run `sh install.sh` in your AirFare
+folder instead of step 5:
+
+```sh
+unzip -o AirFare.zip -d "<the folder that contains your AirFare folder>"
+```
+
+Until you do, `python -m airfare` says what to run to finish the update (*Run sh install.sh*, or on Windows *Run
+AirFare.exe --install*), in the terminal and in a notification, and stops with exit code 5.
+
+**Extracted inside the AirFare folder anyway?** `AirFare.exe`, `install.ps1` and `install.sh` notice that the folder
+above them is an AirFare folder (it has `airfare/__init__.py` and `data/`), stop before installing anything, and say
+what to do: delete the inner folder and extract the zip into the folder that contains your AirFare folder. Neither
+folder's data is touched.
+
+**While an update runs,** `install.ps1` and `install.sh` hold `.venv/airfare-install.lock`. A second one, `AirFare.exe`
+and `python -m airfare` say *AirFare is being updated, try again in a few minutes* (exit code 6) and start nothing.
 
 **Unzipped into a new folder anyway?** Close both copies (tray icon → Quit AirFare), move the `data` folder
 from the old folder into the new one, then start the new copy.
 
-**Going back to an older release:** unzip the previous release over the folder the same way. To return to
-the data as it was before an update, close AirFare and copy the files of a backup in `data/backups` into
+**Going back to an older release:** extract the previous release into the same parent folder the same way. To
+return to the data as it was before an update, close AirFare and copy the files of a backup in `data/backups` into
 `data`. An older AirFare that finds data written by a newer one leaves it as it is, keeps working, and says
 *This data was written by AirFare x.y.z; install that version or newer* in Settings and in `doctor`.
 
 **Clean up** lists the backups with their size and deletes the ones you pick; AirFare keeps the newest three
-by itself, and **Start over** leaves them alone. Reports and logs are never rewritten by an update, so they
-aren't copied.
+by itself, removing older ones only after an update that worked, and **Start over** leaves them alone. An update
+that fails tries again with the same backup. Reports and logs are never rewritten by an update, so they aren't
+copied.
 
 What happens under the hood: `data/version.json` records which AirFare wrote the data and in which format
 (a folder without it is 1.4.1's). At every start, before anything reads the data, `airfare/migrate.py` brings
 an older folder up to date, one step per format number, under a lock so two AirFare processes never do it at
 once. `.venv/airfare-install.json` records the version the Python environment was set up for, which is how
-`AirFare.exe` notices the new files. The zip's `MANIFEST.txt` lists every file it holds: the update deletes
-files in `airfare/`, `extension/`, `extension-firefox/`, `tools/`, `launcher/` and `assets/` that the new
-release doesn't have, and never touches `data/`, `.venv/` or anything else.
+`AirFare.exe` notices the new files. The zip's `MANIFEST.txt`, its first file, lists every file it holds and ends
+with their count: the update deletes files in `airfare/`, `extension/`, `extension-firefox/`, `tools/`, `launcher/`
+and `assets/` that the new release doesn't have, and never touches `data/`, `.venv/` or anything else. It deletes
+nothing unless the manifest is whole and names this version, and it never follows or deletes through a link or
+junction. Source-code installs: `install.ps1` rebuilds `AirFare.exe` when `launcher\AirFare.cs` is newer than it or
+its file version differs from the code's.
 
 ## Share it with another PC
 
@@ -331,9 +354,9 @@ The zip holds the app, the launcher and the English, Spanish and Russian install
 folder (settings, API keys, price history, conversations, logs), no `.venv`, no caches or tests. Your
 Claude login lives in your user profile, not in this folder, so it never travels either. Before
 zipping, the script searches every file for your API keys, session ids, user name, computer name and
-profile path, and stops if it finds any. Unzip it on the other PC into a short path such as
-`Documents\AirFare` (Windows can't handle the deepest package files under a long folder path). On a Mac or
-on Linux, unzip it anywhere and run `sh install.sh`. The zip itself is built on Windows (it includes the
+profile path, and stops if it finds any. Extract it on the other PC into a short path such as `Documents`, which
+makes `Documents\AirFare` (Windows can't handle the deepest package files under a long folder path). On a Mac or
+on Linux, extract it anywhere and run `sh install.sh` in the AirFare folder. The zip itself is built on Windows (it includes the
 launcher).
 
 `tools/make_firefox.py` rebuilds `extension-firefox/` from `extension/`: run it after changing the extension
@@ -415,6 +438,7 @@ published, so expect that answer often.
 - `openai/`, `deepseek/`: the API analysts' conversations. `chatgpt/` is the empty folder Codex works in.
 - `logs/airfare.log`: what each run did.
 - `version.json`: which AirFare last brought this folder up to date, and its format (see *Update AirFare*).
+  If it can't be read, it is left as it is and the data counts as the running version's format.
 - `backups/`: copies of the data made before updates changed it, the newest three.
 
 ## Responsible use

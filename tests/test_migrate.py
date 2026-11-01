@@ -92,7 +92,12 @@ def test_a_new_data_folder_only_gets_its_version(tmp_path):
 
 
 def test_the_newest_three_backups_are_kept(data):
-    made = [migrate.backup(data, "1.4.1").name for _ in range(4)]
+    made = []
+    for i in range(4):
+        (data / "rates.json").write_text(json.dumps({"invented": i}), encoding="utf-8")
+        made.append(migrate.backup(data, "1.4.1").name)
+    assert len(migrate.list_backups(data)) == 4              # backing up alone never removes one
+    migrate._prune(data)
     assert [b["name"] for b in migrate.list_backups(data)] == made[:0:-1]       # newest first, the oldest gone
     assert not (data / "backups" / made[0]).exists()
 
@@ -244,12 +249,15 @@ def test_a_folder_in_backups_that_isnt_a_backup_is_never_listed_or_deleted(data)
 
 # ----- unzipping a release over the old folder ---------------------------------------------------------------
 
+def manifest_text(listed: list[str], version: str = __version__) -> str:
+    return f"# AirFare {version}: invented manifest\n" + "".join(f"{n}\n" for n in listed) + f"# end: {len(listed)} files\n"
+
+
 def make_release(root: Path, listed: list[str], extra: list[str]) -> None:
     for name in listed + extra:
         (root / name).parent.mkdir(parents=True, exist_ok=True)
         (root / name).write_text(name, encoding="utf-8")
-    (root / "MANIFEST.txt").write_text("# invented manifest\n" + "\n".join(listed + ["MANIFEST.txt"]) + "\n",
-                                       encoding="utf-8")
+    (root / "MANIFEST.txt").write_text(manifest_text(listed + ["MANIFEST.txt"]), encoding="utf-8")
 
 
 LISTED = ["airfare/__init__.py", "airfare/config.py", "airfare/static/index.html", "extension/manifest.json",
@@ -294,7 +302,7 @@ def test_the_release_zip_lists_every_file_in_its_manifest():
     text = make_portable.manifest(["airfare/config.py", "airfare/__init__.py", "Install-EN.html"])
     lines = [line for line in text.splitlines() if not line.startswith("#")]
     assert lines == ["Install-EN.html", "MANIFEST.txt", "airfare/__init__.py", "airfare/config.py"]
-    assert text.startswith(f"# AirFare {__version__}:")
+    assert text.startswith(f"# AirFare {__version__}:") and text.endswith("# end: 4 files\n")
 
 
 def test_the_install_record_tells_when_the_code_is_newer_than_its_setup(tmp_path, monkeypatch):
@@ -306,7 +314,7 @@ def test_the_install_record_tells_when_the_code_is_newer_than_its_setup(tmp_path
     assert rec["app"] == __version__ and len(rec["requirements"]) == 64
     assert upgrade.mismatch(tmp_path, prefix=venv) is None
     (tmp_path / "requirements.txt").write_text("invented-package>=2\n", encoding="utf-8")
-    for windows, how in ((False, "Run sh install.sh to finish the update."), (True, "Start AirFare.exe to finish the update.")):
+    for windows, how in ((False, "Run sh install.sh to finish the update."), (True, "Run AirFare.exe --install to finish the update.")):
         monkeypatch.setattr(platform, "WINDOWS", windows)
         assert upgrade.mismatch(tmp_path, prefix=venv).endswith(how)
     assert upgrade.mismatch(tmp_path, prefix=str(tmp_path / "another-python")) is None   # not AirFare's environment
@@ -324,6 +332,7 @@ def test_python_m_airfare_stops_until_the_update_is_finished(monkeypatch, capsys
 def test_the_previous_versions_checker_is_stopped(tmp_path, monkeypatch):
     ended = []
     monkeypatch.setattr(upgrade, "_end", lambda pid: ended.append(pid) or lock.release())
+    monkeypatch.setattr(upgrade, "is_checker", lambda pid, root: pid == 424242)
     (tmp_path / "service.json").write_text(json.dumps({"pid": 424242}), encoding="utf-8")
     assert not upgrade.stop_checker(tmp_path)                    # no lock file: no checker ever ran here
     lock = platform.FileLock(tmp_path / "service.lock")

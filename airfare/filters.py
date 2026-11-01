@@ -12,6 +12,8 @@ converted while it has a price range.
 Filters aren't part of what makes a route the same search (webui._trip): changing them keeps its id, tab, price
 history and lookups. They do restart its alert references, because an old reference may be a fare that's now
 hidden: history.json keeps the filters each route's references were set under, and restart_references() compares.
+A currency change alone doesn't count: Settings converts the range and moves the kept filters along with it
+(follow_currency()), at the same rate. A range the user changed in that same save does count.
 """
 from __future__ import annotations
 
@@ -30,6 +32,8 @@ PRICE_UNKNOWN = "price unknown"
 REASONS = ("price", "transfers", "airports")
 _IATA_CITIES = {iata: city for city, iata in CITY_CODES.items()}
 _CODE_RE = re.compile(r"^[A-Z]{3}$")
+PRICE_KEYS = ("price_min", "price_max")
+TOLERANCE = 0.005       # an amount this close to the converted one is that one (the rate may have moved a little)
 
 
 # ----- reading a route's filters ------------------------------------------------------------------------------
@@ -88,14 +92,18 @@ def stamped(raw: dict | None, currency: str | None) -> dict:
     return out
 
 
-def same(a: dict | None, b: dict | None) -> bool:
-    """Whether two kept filters are the same. Amounts in different currencies can't be compared (a currency change
-    converts the range in Settings), so then only whether each bound is there counts."""
+def same(a: dict | None, b: dict | None, rates: dict | None = None) -> bool:
+    """Whether two kept filters are the same. Amounts in different currencies are the same when b's is what Settings
+    would have converted a's to, within TOLERANCE; without a rate that can't be told, so they count as different."""
     x, y = normal(a), normal(b)
     if (a or {}).get("currency") and (b or {}).get("currency") and a["currency"] != b["currency"]:
-        for k in ("price_min", "price_max"):
+        for k in PRICE_KEYS:
             if (k in x) != (k in y):
                 return False
+            if k in x:
+                converted = money.convert_limit(x[k], a["currency"], b["currency"], rates or {})
+                if converted is None or abs(converted - y[k]) > max(0.5, TOLERANCE * converted):
+                    return False
             x.pop(k, None)
             y.pop(k, None)
     return x == y
@@ -197,14 +205,35 @@ def hidden_line(hidden: dict[str, int]) -> str:
 
 # ----- alert references ---------------------------------------------------------------------------------------
 
-def changed_routes(before: list[dict], after: list[dict], old_currency: str | None, currency: str | None) -> list[dict]:
+def changed_routes(before: list[dict], after: list[dict], old_currency: str | None, currency: str | None,
+                   rates: dict | None = None) -> list[dict]:
     """The routes of `after` whose filters differ from the same route's in `before`."""
     old = {r.get("id"): r for r in before}
     return [r for r in after if r.get("id") in old
-            and not same(stamped(old[r["id"]], old_currency), stamped(r, currency))]
+            and not same(stamped(old[r["id"]], old_currency), stamped(r, currency), rates)]
 
 
-def restart_references(history: dict, routes: list[dict], currency: str | None = None) -> list[str]:
+def follow_currency(history: dict, before: list[dict], after: list[dict], old_currency: str | None,
+                    currency: str | None, rates: dict | None) -> bool:
+    """After a save that changed the currency: a route whose range was only converted keeps its references. Kept
+    now, at the rate it was converted at, since the next check's rate may have moved enough to look like an edit.
+    Filters that changed before this save and haven't had a check yet stay as they are: that restart still stands.
+    Returns whether anything changed."""
+    old = {r.get("id"): r for r in before}
+    moved = False
+    for route in after:
+        h = (history.get("routes") or {}).get(route.get("id"))
+        was = old.get(route.get("id"))
+        if not (h and was and h.get("filters")):
+            continue
+        kept, now = stamped(was, old_currency), stamped(route, currency)
+        if kept.get("currency") != now.get("currency") and same(h["filters"], kept) and same(kept, now, rates):
+            h["filters"] = now
+            moved = True
+    return moved
+
+
+def restart_references(history: dict, routes: list[dict], currency: str | None = None, rates: dict | None = None) -> list[str]:
     """Before a check: a route whose filters changed since its references were set starts again, as Clean up's
     "alert references" does: each kind from this check's prices, like a new route. Its old references, low and last
     prices may be fares that are now hidden. Everything else about the route stays. Returns the ids restarted."""
@@ -218,7 +247,7 @@ def restart_references(history: dict, routes: list[dict], currency: str | None =
             continue
         if h is None:
             h = kept.setdefault(rid, {"name": route.get("name") or rid})
-        if not same(h.get("filters"), now):
+        if not same(h.get("filters"), now, rates):
             for k in ("alert_refs", "alert_ref", "all_time_low", "last"):
                 h.pop(k, None)
             restarted.append(rid)

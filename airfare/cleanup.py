@@ -102,7 +102,7 @@ def summary(cfg: dict) -> dict:
         "reports": {"files": len(reports), "bytes": sum(f.stat().st_size for f in reports)},
         "logs": {"bytes": sum(f.stat().st_size for f in logs)},
         "conversations": _conversations(load_state()),
-        "backups": migrate.list_backups(),
+        "backups": _listed_backups(),
         "auto": cfg.get("cleanup") or {},
     }
 
@@ -251,13 +251,21 @@ def _conversations_reset(o: dict, dry: bool) -> int:
     return len(active)
 
 
+def _listed_backups() -> list[dict]:
+    """What Clean up shows: a backups folder that can't be read (migrate.py logs it) doesn't take the page down."""
+    try:
+        return migrate.list_backups()
+    except migrate.MigrationError:
+        return []
+
+
 def _backups(o: dict, dry: bool) -> int:
     """The backups made before updates: the ones named, or all of them."""
     everything = _yes(o, "everything")
     names = o.get("names") if isinstance(o.get("names"), list) else []
     if not everything and not names:
         raise Problem("Pick the backups to delete")
-    known = {b["name"] for b in migrate.list_backups()}
+    known = {b["name"] for b in _listed_backups()}
     wanted = known if everything else {n for n in names if isinstance(n, str) and n in known}
     if not dry and wanted:
         return migrate.delete_backups(sorted(wanted))

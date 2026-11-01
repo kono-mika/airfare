@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from airfare import config, dashboard, extract, filters, historypage, migrate, pricelog, report, runner, serpapi, upgrade, urls, webui
+from airfare import __version__, config, dashboard, extract, filters, historypage, migrate, notify, pricelog, report, runner, serpapi, upgrade, urls, webui
 from airfare.extract import Flight, Leg, ParsedPage
 from airfare.results import PageResult
 
@@ -523,8 +523,8 @@ def test_a_price_range_follows_a_currency_change_without_restarting_the_referenc
     monkeypatch.setattr(webui.money, "rates", lambda: RATES)
     route = webui.clean_config({"sources": ["extension"], "currency": "RUB", "routes": [{**old}]})["routes"][0]
     assert route["price_min"] == 10000 and route["price_max"] == 30000
-    assert filters.changed_routes([old], [route], "EUR", "RUB") == []
-    assert filters.changed_routes([old], [{**route, "price_min": None}], "EUR", "RUB") == [{**route, "price_min": None}]
+    assert filters.changed_routes([old], [route], "EUR", "RUB", RATES) == []
+    assert filters.changed_routes([old], [{**route, "price_min": None}], "EUR", "RUB", RATES) == [{**route, "price_min": None}]
 
 
 def history_with_references():
@@ -576,7 +576,7 @@ def test_a_currency_change_alone_doesnt_restart_the_references():
     filters.restart_references(history, [_route(price_max=300.0)], "EUR")
     report.update_history(history, report.route_bests(checked(sky_page, {"price_max": 300.0}), RULES), WHEN, {},
                           currency="EUR", rates=RATES)
-    assert filters.restart_references(history, [_route(price_max=30000)], "RUB") == []
+    assert filters.restart_references(history, [_route(price_max=30000)], "RUB", RATES) == []
     assert history["routes"]["r"]["alert_refs"] and history["routes"]["r"]["filters"]["currency"] == "RUB"
 
 
@@ -727,6 +727,10 @@ def test_a_saved_1_4_1_route_keeps_its_id_and_gains_empty_filters(data_141):
 
 # ----- from the review of the safe-updates work ------------------------------------------------------------------
 
+def _manifest(listed: list[str]) -> str:
+    return f"# AirFare {__version__}: invented manifest\n" + "".join(f"{n}\n" for n in listed) + f"# end: {len(listed)} files\n"
+
+
 def test_the_stop_also_shows_a_notification_on_macos_and_linux(monkeypatch, tmp_path):
     shown = []
     monkeypatch.setattr(upgrade.platform, "notify", lambda title, lines, **kw: shown.append((title, lines)) or True)
@@ -738,9 +742,11 @@ def test_the_stop_also_shows_a_notification_on_macos_and_linux(monkeypatch, tmp_
     upgrade.tell_desktop()
     assert "Ejecuta sh install.sh" in shown[1][1][0]
     shown.clear()
+    toasts = []
     monkeypatch.setattr(upgrade.platform, "WINDOWS", True)
+    monkeypatch.setattr(notify, "toast", lambda title, text: toasts.append(text) or True)
     upgrade.tell_desktop()
-    assert shown == []                                       # AirFare.exe finishes the update itself there
+    assert shown == [] and "Ejecuta AirFare.exe --install" in toasts[0]
 
 
 def test_the_stop_has_its_own_exit_code_and_calls_the_notification(monkeypatch, capsys):
@@ -775,7 +781,7 @@ def test_a_file_renamed_only_by_capitals_is_never_deleted(tmp_path, monkeypatch,
         if not path.exists():
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("invented", encoding="utf-8")
-    (tmp_path / "MANIFEST.txt").write_text("\n".join(listed) + "\n", encoding="utf-8")
+    (tmp_path / "MANIFEST.txt").write_text(_manifest(listed), encoding="utf-8")
     removed = upgrade.remove_leftovers(tmp_path, data=tmp_path / "data")
     assert removed == ["airfare/retired.py"]
     assert (tmp_path / "airfare" / "renamed.py").exists() and (tmp_path / "airfare" / "static" / "page.html").exists()
@@ -791,5 +797,5 @@ def test_capitals_still_count_where_folders_tell_them_apart(tmp_path, monkeypatc
     for name in ("airfare/__init__.py", "airfare/Renamed.py", "airfare/renamed.py"):
         (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / name).write_text("invented", encoding="utf-8")
-    (tmp_path / "MANIFEST.txt").write_text("airfare/__init__.py\nairfare/Renamed.py\n", encoding="utf-8")
+    (tmp_path / "MANIFEST.txt").write_text(_manifest(["airfare/__init__.py", "airfare/Renamed.py"]), encoding="utf-8")
     assert upgrade.remove_leftovers(tmp_path, data=tmp_path / "data") == ["airfare/renamed.py"]

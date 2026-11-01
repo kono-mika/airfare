@@ -200,7 +200,7 @@ async def run_check(automatic: bool = False) -> int:
     log.info("price document: %s", prices_path)
 
     history = load_history()
-    filters.restart_references(history, cfg.get("routes") or [], currency)
+    filters.restart_references(history, cfg.get("routes") or [], currency, rates)
     run_info = {"pages": len(data), "ok": sum(1 for d in data if d.result.status == "ok"), "currency": currency,
                 "prices": prices_path.name, "prices_by_route": report.price_summary(data)}
     # (Fares the filters hid were read, even if they were all of them.)

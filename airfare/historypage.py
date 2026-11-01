@@ -414,11 +414,18 @@ $("#del-shown").onclick = () => { const ids = filtered().map(x => x.id); del({id
 $("#del-route").onclick = () => {
   if (route()) del({route_id: route().id}, t("Delete all price history for {name}? This can't be undone.", {name: route().name}));
 };
+// A spreadsheet runs a cell starting with one of these as a formula: an apostrophe makes it plain text. A route's name
+// and a site's price text come from outside.
+function csvCell(v) {
+  let s = String(v ?? "");
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return /[",;\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
 $("#csv").onclick = () => {      // the records shown, as a spreadsheet file (works opened from disk too)
   const recs = filtered().sort((a, b) => a.time.localeCompare(b.time) || a.price - b.price);
   const head = ["seen", "source", "route", "origin", "destination", "depart", "return", "price", "currency", "site_price",
                 "airlines", "stops", "minutes", "url", "filters"];
-  const cell = v => { const s = String(v ?? ""); return /[",;\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const cell = csvCell;
   const rows = recs.map(x => [x.time.replace("T", " "), x.source, x.route_name, x.origin, x.destination, x.depart, x.return || "",
                               x.price, D.currency, x.site_price || "", x.airlines, x.stops, x.minutes, x.url || "",
                               filterText(x.filters)]);

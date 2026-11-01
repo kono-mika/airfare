@@ -2,9 +2,11 @@
 
     python tools/make_portable.py          ->  dist/AirFare.zip
 
-Only listed files go in (never data/, .venv/, logs, caches or tests), plus MANIFEST.txt naming every file in
-the zip: an update unzipped over an older AirFare deletes the files its code folders hold that the manifest
-doesn't list (airfare/upgrade.py), so nothing of the old version is left behind. Before zipping, every file is searched
+Only listed files go in (never data/, .venv/, logs, caches or tests), plus MANIFEST.txt, first in the zip, naming
+every file in it and ending with their count: an update extracted over an older AirFare deletes the files its code
+folders hold that the manifest doesn't list (airfare/upgrade.py), so nothing of the old version is left behind.
+A whole manifest of this version is what allows that: an unzip that stops early leaves files missing from the new
+list, or the old list, and a list cut short has no count. Before zipping, every file is searched
 for this PC's API keys, Claude and DeepSeek session ids, Claude account, routes and airport codes, user name,
 computer name and folder paths; the build stops if any appear, naming only the kind of data found.
 """
@@ -172,10 +174,11 @@ MANIFEST = "MANIFEST.txt"
 
 
 def manifest(names: list[str]) -> str:
-    """MANIFEST.txt: every file in the zip, one path per line, relative to the AirFare folder."""
+    """MANIFEST.txt: every file in the zip, one path per line, relative to the AirFare folder, then their count."""
     head = (f"# AirFare {__version__}: every file in AirFare.zip. Updating over an older AirFare deletes the files in\n"
             "# airfare/, extension/, extension-firefox/, tools/, launcher/ and assets/ that this list doesn't name.\n")
-    return head + "".join(f"{n}\n" for n in sorted({*names, MANIFEST}))
+    listed = sorted({*names, MANIFEST})
+    return head + "".join(f"{n}\n" for n in listed) + f"# end: {len(listed)} files\n"
 
 
 def leaks(name: str, blob: bytes, needles: dict[str, str], codes: set[str]) -> list[str]:
@@ -190,6 +193,23 @@ def leaks(name: str, blob: bytes, needles: dict[str, str], codes: set[str]) -> l
     if name.endswith(TEXT_FILES):
         hits.update(f"your airport code {c.upper()}" for c in codes if re.search(rf"\b{re.escape(c)}\b", texts[0]))
     return sorted(hits)
+
+
+def write_zip(zip_path: Path, files: list[tuple[Path, str]], pages: dict[str, str]) -> None:
+    """The zip, with MANIFEST.txt first: whatever an unzip that stops early has written, it has the manifest."""
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr(f"AirFare/{MANIFEST}", pages[MANIFEST])
+        for path, name in files:
+            if name.endswith(".sh"):
+                # Runnable on macOS and Linux as unzipped: Unix line endings and the executable bit.
+                info = zipfile.ZipInfo.from_file(path, f"AirFare/{name}")
+                info.external_attr = 0o100755 << 16
+                z.writestr(info, path.read_bytes().replace(b"\r\n", b"\n"), zipfile.ZIP_DEFLATED)
+            else:
+                z.write(path, f"AirFare/{name}")
+        for name, text in pages.items():
+            if name != MANIFEST:
+                z.writestr(f"AirFare/{name}", text)
 
 
 def main() -> None:
@@ -211,17 +231,7 @@ def main() -> None:
     dist.mkdir(exist_ok=True)
     zip_path = dist / "AirFare.zip"           # the name the install guides use
     zip_path.unlink(missing_ok=True)
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
-        for path, name in files:
-            if name.endswith(".sh"):
-                # Runnable on macOS and Linux as unzipped: Unix line endings and the executable bit.
-                info = zipfile.ZipInfo.from_file(path, f"AirFare/{name}")
-                info.external_attr = 0o100755 << 16
-                z.writestr(info, path.read_bytes().replace(b"\r\n", b"\n"), zipfile.ZIP_DEFLATED)
-            else:
-                z.write(path, f"AirFare/{name}")
-        for name, text in pages.items():
-            z.writestr(f"AirFare/{name}", text)
+    write_zip(zip_path, files, pages)
     copy = dist / "guides"
     shutil.rmtree(copy, ignore_errors=True)
     copy.mkdir()

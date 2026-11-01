@@ -6,13 +6,13 @@ You need Google Chrome, Microsoft Edge, Brave, Opera or Mozilla Firefox (for Sky
 
 ## 1. Unpack and start
 
-1. Unzip **AirFare.zip** into a folder you'll keep, for example `Documents\AirFare` (not Downloads or a temporary folder).
+1. Extract **AirFare.zip** into a folder you'll keep, for example `Documents` (not Downloads or a temporary folder). It makes `Documents\AirFare`: open that folder.
 2. Double-click **AirFare.exe**. If Windows says *"Windows protected your PC"*, click **More info**, then **Run anyway**. AirFare isn't signed by a publisher, so Windows asks once.
 3. Click **OK** to set it up. A window shows the progress (about 5 minutes). If Python is missing, it offers to install it: type **Y**.
 
 When setup finishes, AirFare adds icons to the desktop and Start menu, starts with Windows, and opens **Settings** in your browser. The next steps happen there.
 
-**On a Mac or on Linux** there is no AirFare.exe. Unzip AirFare.zip into a folder you'll keep, open a terminal, type `cd ` (with a space), drag the AirFare folder into the terminal window, press Enter, then run `sh install.sh`. It needs Python 3.12 or newer: on a Mac without it, it offers to install it with Homebrew; on Linux it tells you which package to install (on Debian and Ubuntu, `sudo apt install python3 python3-venv`). When it finishes, AirFare is in your app menu (Linux) or in the Applications folder of your home folder (macOS), starts every time you log in, and opens **Settings** in your browser.
+**On a Mac or on Linux** there is no AirFare.exe. Extract AirFare.zip into a folder you'll keep (it makes an AirFare folder there), open a terminal, type `cd ` (with a space), drag the AirFare folder into the terminal window, press Enter, then run `sh install.sh`. It needs Python 3.12 or newer: on a Mac without it, it offers to install it with Homebrew; on Linux it tells you which package to install (on Debian and Ubuntu, `sudo apt install python3 python3-venv`). When it finishes, AirFare is in your app menu (Linux) or in the Applications folder of your home folder (macOS), starts every time you log in, and opens **Settings** in your browser.
 
 **Language:** switch between **EN**, **ES** and **RU** at the top right of any AirFare page, at any moment. Nothing you've typed is lost.
 
@@ -94,13 +94,15 @@ An update keeps your settings, keys, routes, price history, conversations and ev
 1. In Settings, **Fine-tuning → Updates → Check for updates** tells you when a new version is out (Settings then shows these steps with the link).
 2. Quit AirFare: tray icon → **Quit AirFare** (if you use the tray icon).
 3. Download `AirFare.zip` from the [Releases](https://github.com/kono-mika/airfare/releases) page.
-4. Unzip it into the **same** AirFare folder and choose to **replace the files**. Never into a new folder: your data stays in the old one.
+4. Extract the zip into the folder that **contains** your AirFare folder: **Extract All**, choose that parent folder (for example `Documents`) and **replace the files**. Not into the AirFare folder itself: the zip has its own AirFare folder, so that makes `AirFare\AirFare`. If your folder has another name, rename it to `AirFare` first.
+   On a Mac or on Linux, don't double-click the zip (on a Mac that makes a new folder, `AirFare 2`). In a terminal, in the folder with the download, run `unzip -o AirFare.zip -d "<the folder that contains your AirFare folder>"`.
 5. Double-click **AirFare.exe**. It backs up your data, finishes the update in its setup window and opens Settings. If anything goes wrong, your data is untouched and the window says what to do.
    On a Mac or on Linux, run `sh install.sh` in the AirFare folder instead.
 6. If Settings says the browser runs an older extension, reload it there (Firefox: sign and install the new `.xpi`).
 
-- **Unzipped into a new folder by mistake?** Close both copies, move the `data` folder from the old folder into the new one, then start the new copy.
-- **Going back:** unzip the previous version over the folder the same way. To return to your data as it was before an update, close AirFare and copy the files from a backup in `data\backups` into `data`.
+- **Extracted inside the AirFare folder by mistake?** AirFare stops before installing anything and says so. Delete the inner folder and extract the zip into the folder that contains your AirFare folder.
+- **Extracted into a new folder by mistake?** Close both copies, move the `data` folder from the old folder into the new one, then start the new copy.
+- **Going back:** extract the previous version into the same parent folder the same way. To return to your data as it was before an update, close AirFare and copy the files from a backup in `data\backups` into `data`.
 
 ## Good to know
 

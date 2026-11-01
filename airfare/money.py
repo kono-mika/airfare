@@ -41,6 +41,8 @@ CREDIT_HTML = '<a href="https://www.exchangerate-api.com">Rates By Exchange Rate
 CREDIT_MD = "[Rates By Exchange Rate API](https://www.exchangerate-api.com)"
 MAX_AGE = timedelta(hours=12)
 MAX_JUMP = 0.5          # a rate that moved more than 50% since the last download is a data error, not news
+MAX_RATE = 1e7          # the highest rate _sane() accepts, in units per euro
+PRICE_CAP = 10_000_000  # the highest price a filter or alert limit may hold, in euros
 
 # Signs as sources print them, longest first so "US$" wins over "$".
 _SIGNS = [("US$", "USD"), ("C$", "CAD"), ("CA$", "CAD"), ("A$", "AUD"), ("AU$", "AUD"), ("NZ$", "NZD"),
@@ -108,7 +110,7 @@ def _sane(rates) -> dict[str, float]:
             v = float(value)
         except (TypeError, ValueError):
             continue
-        if re.fullmatch(r"[A-Z]{3}", str(code)) and 0 < v < 1e7 and math.isfinite(v):
+        if re.fullmatch(r"[A-Z]{3}", str(code)) and 0 < v < MAX_RATE and math.isfinite(v):
             out[str(code)] = v
     return out
 
@@ -191,6 +193,20 @@ def convert(amount: float, src: str, dst: str, table: dict) -> float | None:
     if src not in r or dst not in r:
         return None
     return float(amount) / r[src] * r[dst]
+
+
+def convert_limit(amount: float, src: str, dst: str, table: dict) -> int | None:
+    """A price limit or range bound in another currency: whole units, never below 1 (0 would mean no limit at all).
+    None without a rate for one of them."""
+    value = convert(amount, src, dst, table)
+    return None if value is None or not math.isfinite(value) else max(round(value), 1)
+
+
+def price_cap(code: str, table: dict | None) -> float:
+    """The highest price a filter or alert limit may hold in this currency: PRICE_CAP euros in its units. Without a
+    rate there is nothing to go by, and a real price in a small unit mustn't be refused, so then the most it can be."""
+    rate = ((table or {}).get("rates") or {}).get((code or "").upper())
+    return PRICE_CAP * (rate if rate else MAX_RATE)
 
 
 def rate_line(dst: str, table: dict, also: tuple[str, ...] = ()) -> str:

@@ -17,7 +17,7 @@ from urllib.parse import urlencode
 
 from . import filters, money as cash
 from .results import PageResult
-from .extract import Flight, Leg, ParsedPage, top_picks
+from .extract import Flight, Leg, ParsedPage, capped_connections, stop_count, top_picks
 from .urls import CITY_AIRPORTS, passengers
 
 log = logging.getLogger(__name__)
@@ -117,7 +117,7 @@ def _flight(item: dict, currency: str, best: bool) -> Flight | None:
         depart=_iso(first["departure_airport"].get("time")),
         arrive=_iso(last["arrival_airport"].get("time")),
         minutes=int(minutes),
-        stops=len(segs) - 1,
+        stops=stop_count(len(segs) - 1),
         airlines=" + ".join(names) or "?",
     )
     tags = ["google best"] if best else []
@@ -127,7 +127,8 @@ def _flight(item: dict, currency: str, best: bool) -> Flight | None:
     price = float(item["price"])
     connections = [str(l.get("id") or "?").upper() for l in item.get("layovers") or []]
     connections += ["?"] * (leg.stops - len(connections))
-    return Flight(id=fid, price=price, price_text=money(price, currency), legs=[leg], tags=tags, connections=connections)
+    return Flight(id=fid, price=price, price_text=money(price, currency), legs=[leg], tags=tags,
+                  connections=capped_connections(connections))
 
 
 def parse(body: dict, currency: str, round_trip: bool) -> ParsedPage:

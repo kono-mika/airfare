@@ -6,7 +6,7 @@ Necesitas Google Chrome, Microsoft Edge, Brave, Opera o Mozilla Firefox (para lo
 
 ## 1. Descomprime y abre
 
-1. Descomprime **AirFare.zip** en una carpeta que vayas a conservar, por ejemplo `Documentos\AirFare` (no en Descargas ni en una carpeta temporal).
+1. Extrae **AirFare.zip** en una carpeta que vayas a conservar, por ejemplo `Documentos` (no en Descargas ni en una carpeta temporal). Crea `Documentos\AirFare`: abre esa carpeta.
 2. Haz doble clic en **AirFare.exe**. Si Windows muestra *«Windows protegió su PC»*, haz clic en **Más información** y luego en **Ejecutar de todas formas**. AirFare no está firmado por un editor, así que Windows pregunta una vez.
 3. Haz clic en **Aceptar** para instalarlo. Una ventana muestra el progreso (unos 5 minutos). Si falta Python, ofrece instalarlo: escribe **Y**.
 
@@ -94,13 +94,15 @@ Una actualización conserva tus ajustes, claves, rutas, historial de precios, co
 1. En Ajustes, **Ajustes finos → Actualizaciones → Buscar actualizaciones** te dice cuándo hay una versión nueva (Ajustes muestra entonces estos pasos con el enlace).
 2. Cierra AirFare: icono del área de notificación → **Salir de AirFare** (si usas el icono).
 3. Descarga `AirFare.zip` de la página [Releases](https://github.com/kono-mika/airfare/releases).
-4. Descomprímelo en la **misma** carpeta de AirFare y elige **reemplazar los archivos**. Nunca en una carpeta nueva: tus datos se quedan en la anterior.
+4. Extrae el zip en la carpeta que **contiene** tu carpeta de AirFare: **Extraer todo**, elige esa carpeta superior (por ejemplo `Documentos`) y **reemplaza los archivos**. No en la propia carpeta de AirFare: el zip trae su propia carpeta AirFare, así que eso crea `AirFare\AirFare`. Si tu carpeta tiene otro nombre, cámbialo antes a `AirFare`.
+   En un Mac o en Linux, no hagas doble clic en el zip (en un Mac eso crea una carpeta nueva, `AirFare 2`). En un terminal, en la carpeta de la descarga, ejecuta `unzip -o AirFare.zip -d "<la carpeta que contiene tu carpeta de AirFare>"`.
 5. Haz doble clic en **AirFare.exe**. Hace una copia de tus datos, termina la actualización en su ventana de instalación y abre Ajustes. Si algo falla, tus datos quedan intactos y la ventana dice qué hacer.
    En un Mac o en Linux, ejecuta en su lugar `sh install.sh` en la carpeta de AirFare.
 6. Si Ajustes dice que el navegador usa una extensión anterior, recárgala allí (Firefox: firma e instala el nuevo `.xpi`).
 
-- **¿Lo descomprimiste en una carpeta nueva por error?** Cierra las dos copias, mueve la carpeta `data` de la carpeta anterior a la nueva y abre la copia nueva.
-- **Volver atrás:** descomprime la versión anterior sobre la carpeta del mismo modo. Para recuperar tus datos tal como estaban antes de una actualización, cierra AirFare y copia los archivos de una copia de `data\backups` en `data`.
+- **¿Lo extrajiste dentro de la carpeta de AirFare por error?** AirFare se detiene antes de instalar nada y te lo dice. Borra la carpeta interior y extrae el zip en la carpeta que contiene tu carpeta de AirFare.
+- **¿Lo extrajiste en una carpeta nueva por error?** Cierra las dos copias, mueve la carpeta `data` de la carpeta anterior a la nueva y abre la copia nueva.
+- **Volver atrás:** extrae la versión anterior en la misma carpeta superior del mismo modo. Para recuperar tus datos tal como estaban antes de una actualización, cierra AirFare y copia los archivos de una copia de `data\backups` en `data`.
 
 ## Conviene saber
 
