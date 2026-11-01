@@ -238,7 +238,50 @@ system tray).
 
 **Updates:** **Fine-tuning → Updates** asks GitHub for the latest release when you press **Check for
 updates**, and, if you leave the switch on, once a day when Settings opens (one anonymous request, nothing
-about you is sent). A copy whose `airfare/__init__.py` names no repository doesn't check at all.
+about you is sent). A copy whose `airfare/__init__.py` names no repository doesn't check at all. When a newer
+release is out, Settings shows the update steps below in short, with the link to the release.
+
+## Update AirFare
+
+An update keeps everything in `data`: settings, API keys, routes, price history, lookups, dashboard tabs,
+alert references, analyst conversations, reports and logs. Before an update changes anything there, AirFare
+copies it to `data/backups/<old version>-<date>-<time>/`.
+
+**Windows:**
+
+1. In Settings, **Fine-tuning → Updates → Check for updates** says whether a newer release is out.
+2. Quit AirFare: tray icon → **Quit AirFare** (if you use the tray icon).
+3. Download `AirFare.zip` from [Releases](https://github.com/kono-mika/airfare/releases).
+4. Unzip it into the **same** AirFare folder and choose to replace the files. Never into a new folder: your
+   data stays in the old one.
+5. Double-click **AirFare.exe**. It sees the new version, backs up the data and finishes the update in its
+   setup window (packages, data, shortcuts, the background checker), then opens Settings. If anything fails,
+   the data is untouched and the window says what to do.
+6. If Settings says the browser runs an older extension, reload it there (Firefox: sign and install the new
+   `.xpi`, see *Firefox* above).
+
+**macOS and Linux:** the same steps, then run `sh install.sh` in the folder instead of step 5. Until you
+do, `python -m airfare` says *Run sh install.sh to finish the update*.
+
+**Unzipped into a new folder anyway?** Close both copies (tray icon → Quit AirFare), move the `data` folder
+from the old folder into the new one, then start the new copy.
+
+**Going back to an older release:** unzip the previous release over the folder the same way. To return to
+the data as it was before an update, close AirFare and copy the files of a backup in `data/backups` into
+`data`. An older AirFare that finds data written by a newer one leaves it as it is, keeps working, and says
+*This data was written by AirFare x.y.z; install that version or newer* in Settings and in `doctor`.
+
+**Clean up** lists the backups with their size and deletes the ones you pick; AirFare keeps the newest three
+by itself, and **Start over** leaves them alone. Reports and logs are never rewritten by an update, so they
+aren't copied.
+
+What happens under the hood: `data/version.json` records which AirFare wrote the data and in which format
+(a folder without it is 1.4.1's). At every start, before anything reads the data, `airfare/migrate.py` brings
+an older folder up to date, one step per format number, under a lock so two AirFare processes never do it at
+once. `.venv/airfare-install.json` records the version the Python environment was set up for, which is how
+`AirFare.exe` notices the new files. The zip's `MANIFEST.txt` lists every file it holds: the update deletes
+files in `airfare/`, `extension/`, `extension-firefox/`, `tools/`, `launcher/` and `assets/` that the new
+release doesn't have, and never touches `data/`, `.venv/` or anything else.
 
 ## Share it with another PC
 
@@ -330,6 +373,8 @@ published, so expect that answer often.
 - `dashboard.json`: each route's last dashboard section in every language, so earlier routes keep their tab.
 - `openai/`, `deepseek/`: the API analysts' conversations. `chatgpt/` is the empty folder Codex works in.
 - `logs/airfare.log`: what each run did.
+- `version.json`: which AirFare last brought this folder up to date, and its format (see *Update AirFare*).
+- `backups/`: copies of the data made before updates changed it, the newest three.
 
 ## Responsible use
 

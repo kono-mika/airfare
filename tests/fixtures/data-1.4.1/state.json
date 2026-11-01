@@ -1,0 +1,19 @@
+{
+  "session_id": "11111111-2222-4333-8444-555555555555",
+  "session_started": "2026-10-20T08:00",
+  "session_checks": 4,
+  "context_tokens": 18200,
+  "session_model": "claude-sonnet-5-5",
+  "deepseek": {
+    "session_id": "invented-deepseek-0001",
+    "session_started": "2026-10-24T08:00",
+    "session_checks": 3,
+    "context_tokens": 9100,
+    "session_model": "deepseek-flash",
+    "previous_sessions": [{"id": "invented-deepseek-0000", "ended": "2026-10-24T08:00", "checks": 12}]
+  },
+  "last_check": "2026-10-28T08:00",
+  "extension_seen": "2026-10-28T08:01",
+  "extension_version": "1.4.0",
+  "update": {"checked": "2026-10-28T07:59", "latest": "1.4.1", "url": "https://github.com/kono-mika/airfare/releases/tag/v1.4.1", "error": null}
+}

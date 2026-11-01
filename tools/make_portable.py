@@ -2,7 +2,9 @@
 
     python tools/make_portable.py          ->  dist/AirFare.zip
 
-Only listed files go in (never data/, .venv/, logs, caches or tests). Before zipping, every file is searched
+Only listed files go in (never data/, .venv/, logs, caches or tests), plus MANIFEST.txt naming every file in
+the zip: an update unzipped over an older AirFare deletes the files its code folders hold that the manifest
+doesn't list (airfare/upgrade.py), so nothing of the old version is left behind. Before zipping, every file is searched
 for this PC's API keys, Claude and DeepSeek session ids, Claude account, routes and airport codes, user name,
 computer name and folder paths; the build stops if any appear, naming only the kind of data found.
 """
@@ -166,6 +168,14 @@ def guides() -> dict[str, str]:
 
 
 TEXT_FILES = (".py", ".js", ".html", ".md", ".json", ".ps1", ".sh", ".cs", ".txt")
+MANIFEST = "MANIFEST.txt"
+
+
+def manifest(names: list[str]) -> str:
+    """MANIFEST.txt: every file in the zip, one path per line, relative to the AirFare folder."""
+    head = (f"# AirFare {__version__}: every file in AirFare.zip. Updating over an older AirFare deletes the files in\n"
+            "# airfare/, extension/, extension-firefox/, tools/, launcher/ and assets/ that this list doesn't name.\n")
+    return head + "".join(f"{n}\n" for n in sorted({*names, MANIFEST}))
 
 
 def leaks(name: str, blob: bytes, needles: dict[str, str], codes: set[str]) -> list[str]:
@@ -191,6 +201,7 @@ def main() -> None:
     problems = []
     for path, name in files:
         problems += [f"{name}: contains {hit}" for hit in leaks(name, path.read_bytes(), needles, codes)]
+    pages[MANIFEST] = manifest([name for _, name in files] + list(pages))
     for name, text in pages.items():
         problems += [f"{name}: contains {hit}" for hit in leaks(name, text.encode("utf-8"), needles, codes)]
     if problems:
@@ -215,7 +226,8 @@ def main() -> None:
     shutil.rmtree(copy, ignore_errors=True)
     copy.mkdir()
     for name, text in pages.items():
-        (copy / name).write_text(text, encoding="utf-8")
+        if name != MANIFEST:
+            (copy / name).write_text(text, encoding="utf-8")
     print(f"{zip_path}  (AirFare {__version__}, {len(files) + len(pages)} files, {zip_path.stat().st_size // 1024} KB)")
     kinds = sorted(set(needles.values()))
     print(f"checked every file for {len(needles)} personal strings ({', '.join(kinds)}) and "

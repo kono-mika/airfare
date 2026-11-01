@@ -1,7 +1,10 @@
 // AirFare.exe: the icon people double-click. On a PC where AirFare isn't set up yet it offers to run the
-// installer; after that it opens AirFare Settings. The Startup shortcut runs "AirFare.exe --service", so
-// Windows lists the startup entry as AirFare with this icon instead of as Python. It also opens airfare:
-// links (see airfare\links.py), which notifications and pages opened from disk use to reach the live pages.
+// installer; after that it opens AirFare Settings. When a new release was unzipped over the folder (the code's
+// version differs from the one its Python environment was set up for), it first finishes the update with the
+// installer in its window: backup and migration of the data, packages, shortcuts. The Startup shortcut runs
+// "AirFare.exe --service", so Windows lists the startup entry as AirFare with this icon instead of as Python.
+// It also opens airfare: links (see airfare\links.py), which notifications and pages opened from disk use to
+// reach the live pages.
 //
 // Built with the C# compiler that ships with Windows (C# 5): see launcher\build.ps1.
 using System;
@@ -9,6 +12,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
@@ -17,8 +21,8 @@ using System.Windows.Forms;
 [assembly: AssemblyProduct("AirFare")]
 [assembly: AssemblyCompany("AirFare")]
 [assembly: AssemblyCopyright("")]
-[assembly: AssemblyVersion("1.4.1.0")]
-[assembly: AssemblyFileVersion("1.4.1.0")]
+[assembly: AssemblyVersion("1.5.0.0")]
+[assembly: AssemblyFileVersion("1.5.0.0")]
 
 static class Launcher
 {
@@ -43,6 +47,51 @@ static class Launcher
     static string T(string en, string es, string ru)
     {
         return lang == "es" ? es : lang == "ru" ? ru : en;
+    }
+
+    // The version of the code in this folder (airfare\__init__.py).
+    static string CodeVersion(string root)
+    {
+        try
+        {
+            Match m = Regex.Match(File.ReadAllText(Path.Combine(root, @"airfare\__init__.py")),
+                                  "__version__\\s*=\\s*\"([^\"]+)\"");
+            if (m.Success)
+                return m.Groups[1].Value;
+        }
+        catch (Exception) { }
+        return "";
+    }
+
+    // What the installer recorded in .venv\airfare-install.json (airfare\upgrade.py): "app" is the version it set
+    // up, "requirements" the SHA-256 of the requirements.txt it installed. Null when there is no record (1.4.1).
+    static string Recorded(string root, string key)
+    {
+        try
+        {
+            Match m = Regex.Match(File.ReadAllText(Path.Combine(root, @".venv\airfare-install.json")),
+                                  "\"" + key + "\"\\s*:\\s*\"([^\"]*)\"");
+            if (m.Success)
+                return m.Groups[1].Value;
+        }
+        catch (Exception) { }
+        return null;
+    }
+
+    static string RequirementsHash(string root)
+    {
+        try
+        {
+            using (SHA256 sha = SHA256.Create())
+            {
+                byte[] hash = sha.ComputeHash(File.ReadAllBytes(Path.Combine(root, "requirements.txt")));
+                return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+            }
+        }
+        catch (Exception)
+        {
+            return "";
+        }
     }
 
     [STAThread]
@@ -85,6 +134,9 @@ static class Launcher
                                 Title, MessageBoxButtons.OK, MessageBoxIcon.Error);
             return 1;
         }
+        string code = CodeVersion(root), installed = Recorded(root, "app");
+        if (installed != code || Recorded(root, "requirements") != RequirementsHash(root))
+            return Upgrade(root, installed, code);
 
         string command;
         switch (mode)
@@ -106,7 +158,29 @@ static class Launcher
         return Start(windowless ? pythonw : python, "-m airfare " + command, root, !windowless) ? 0 : 1;
     }
 
-    static int Install(string root, bool asked)
+    static int Upgrade(string root, string installed, string code)
+    {
+        string from = installed != null ? "AirFare " + installed : T("an earlier version", "una versión anterior", "более ранней версии");
+        DialogResult answer = MessageBox.Show(T(
+            "AirFare " + code + " is in this folder, but it is still set up for " + from + ".\n\n" +
+            "Finish the update now? AirFare first backs up your data (settings, routes, price history) to data\\backups, " +
+            "then installs what the new version needs. It takes a few minutes and needs the internet. A window shows " +
+            "the progress, and AirFare Settings opens when it's done.",
+            "En esta carpeta está AirFare " + code + ", pero sigue instalado para " + from + ".\n\n" +
+            "¿Terminar la actualización ahora? AirFare primero hace una copia de tus datos (ajustes, rutas, historial de " +
+            "precios) en data\\backups y luego instala lo que necesita la nueva versión. Tarda unos minutos y necesita " +
+            "internet. Una ventana muestra el progreso y, al terminar, se abren los Ajustes de AirFare.",
+            "В этой папке AirFare " + code + ", но установлен он ещё для " + from + ".\n\n" +
+            "Завершить обновление сейчас? Сначала AirFare сохранит копию ваших данных (настройки, маршруты, история цен) " +
+            "в data\\backups, затем установит то, что нужно новой версии. Это займёт несколько минут и нужен интернет. " +
+            "В окне будет виден ход обновления, а по завершении откроются настройки AirFare."),
+            Title, MessageBoxButtons.OKCancel, MessageBoxIcon.Information);
+        if (answer != DialogResult.OK)
+            return 0;            // nothing starts with code and setup that don't match; the next start asks again
+        return Install(root, true, true);
+    }
+
+    static int Install(string root, bool asked, bool upgrade = false)
     {
         string script = Path.Combine(root, "install.ps1");
         if (!File.Exists(script))
@@ -133,7 +207,7 @@ static class Launcher
         }
         string powershell = Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe");
         ProcessStartInfo info = new ProcessStartInfo(powershell,
-            "-NoProfile -ExecutionPolicy Bypass -File \"" + script + "\"");
+            "-NoProfile -ExecutionPolicy Bypass -File \"" + script + "\"" + (upgrade ? " -Upgrade" : ""));
         info.WorkingDirectory = root;
         info.UseShellExecute = true;   // its own console window, so the progress is visible
         try

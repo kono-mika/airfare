@@ -5,11 +5,17 @@
 # LaunchAgent on macOS), then a health check. Run it from the AirFare folder:  sh install.sh
 # --quiet: no questions and no Settings page at the end (for scripted installs).
 # (On Windows, AirFare.exe runs install.ps1 instead.)
+# To update, unzip a new release over this folder and run this again: the previous version's background
+# checker and Settings server stop, files it left behind go (MANIFEST.txt), the packages update, the data is
+# backed up and migrated (airfare/migrate.py), and the checker starts again. The data folder is never deleted.
 set -u
 cd "$(dirname "$0")" || exit 1
 root=$(pwd -P)
 quiet=0
 [ "${1:-}" = "--quiet" ] && quiet=1
+version=$(sed -n 's/^__version__ = "\([^"]*\)".*/\1/p' "$root/airfare/__init__.py" 2>/dev/null)
+# What a failed update says: nothing in the data folder has changed, and how to try again or go back.
+untouched="Your data is untouched. Fix the problem above and run  sh install.sh  again, or go back by unzipping the previous release over this folder."
 system=$(uname -s)
 
 step() { printf '\n\033[36m== %s\033[0m\n' "$1"; }
@@ -34,7 +40,7 @@ find_python() {
     return 1
 }
 
-echo "Setting up AirFare in $root"
+echo "Setting up AirFare $version in $root"
 
 step "Python"
 python=$(find_python)
@@ -73,10 +79,18 @@ if [ ! -e "$venv_py" ]; then
 On Debian and Ubuntu, install Python's venv module first:  sudo apt install python3-venv"
     fi
 fi
+# A background checker or Settings page still running the previous version, and files the previous version had
+# but this one doesn't: both are handled before pip runs.
+"$venv_py" -m airfare.upgrade prepare ||
+    printf '\033[33m%s\033[0m\n' "Couldn't stop the previous version everywhere; quit AirFare (tray icon, Quit AirFare) if the next step fails."
 echo "Installing packages. This takes a few minutes (the Claude Agent SDK is about 130 MB)..."
 "$venv_py" -m pip install --upgrade pip --quiet --disable-pip-version-check
 "$venv_py" -m pip install -r "$root/requirements.txt" --quiet --disable-pip-version-check ||
-    fail "Installing packages failed. Check the internet connection and run  sh install.sh  again."
+    fail "Installing packages failed. Check the internet connection. $untouched"
+
+step "Your data"
+# Backed up to data/backups first, then brought up to this version's format; on any problem it is put back.
+"$venv_py" -m airfare migrate || fail "Updating the data folder failed. $untouched"
 
 step "App entry and start at login"
 "$venv_py" -c '
@@ -91,6 +105,9 @@ if platform.LINUX:
           "airfare: links are not set up (is xdg-utils installed?); notifications open the dashboard file instead")
 print("Added", platform.add_login_item(PROJECT_DIR))
 ' || printf '\033[33m%s\033[0m\n' "Couldn't add AirFare's app entry or its start at login."
+# Records what is installed (python -m airfare compares it with the code) and starts the background checker
+# again if the settings need it running.
+"$venv_py" -m airfare.upgrade finish || fail "Finishing the setup failed. $untouched"
 
 step "Health check"
 "$venv_py" -m airfare doctor

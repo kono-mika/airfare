@@ -38,9 +38,17 @@ environment variable `AIRFARE_DATA` set to a scratch folder, so your own setting
 - **The Firefox build:** after changing `extension/`, run `python tools/make_firefox.py`.
   `tests/test_firefox.py` fails while `extension-firefox/` is out of date.
 - **Docs:** the README and `docs/INSTALL_*.md` when behaviour or setup changes.
-- **Users' data keeps working:** an update must never lose settings, price history, lookups, dashboard tabs,
-  alert references or analyst conversations. Never rename or remove a stored setting or field, or change what a
-  value means, without a migration; give every new field a default when it is read; route ids never change.
+- **Users' data keeps working:** someone who updates from 1.4.1 or any later version keeps all their data:
+  settings, API keys, routes and their ids, price history, lowest-price lookups, dashboard tabs, alert
+  references, analyst conversations, reports and logs. So:
+  - never rename or remove a stored key, or change what a value means, without a migration step in
+    `airfare/migrate.py` (bump `SCHEMA`, add the step to `STEPS`; each step is idempotent and backed up first);
+  - new keys get their default when read; readers accept missing and unknown fields;
+  - route ids never change in a migration; old records are never rewritten except by a migration step;
+  - `save_config` keeps top-level keys and route fields it doesn't know, so settings survive going to a newer
+    or older version (a new route field the Settings form writes goes into `config.ROUTE_FIELDS`);
+  - `tests/fixtures/data-1.4.1/` (invented data) must migrate with every id, record and reference intact;
+    add a fixture for any release that changes the format.
 
 ## Privacy and safety
 

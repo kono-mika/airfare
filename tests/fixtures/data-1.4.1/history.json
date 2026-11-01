@@ -1,0 +1,41 @@
+{
+  "routes": {
+    "fx01ab": {
+      "name": "Invented route one",
+      "all_time_low": {"price": 212.0, "price_text": "€212", "currency": "EUR", "minutes": 185, "stops": 0, "seen": "2026-10-25T08:00"},
+      "last": {
+        "checked": "2026-10-28T08:00",
+        "currency": "EUR",
+        "cheapest": {"price": 230.0, "price_text": "€230", "currency": "EUR", "minutes": 190, "stops": 0},
+        "fastest": {"price": 260.0, "price_text": "€260", "currency": "EUR", "minutes": 170, "stops": 0},
+        "best_pick": "cheapest",
+        "best_value": "€230, direct, 3h 10m",
+        "best_value_price": 230.0
+      },
+      "alert_refs": {
+        "cheapest": {"price": 240.0, "text": "€240", "currency": "EUR", "minutes": 190, "stops": 0, "set": "2026-10-20T08:00", "reason": "first check"},
+        "fastest": {"price": 260.0, "text": "€260", "currency": "EUR", "minutes": 170, "stops": 0, "set": "2026-10-20T08:00", "reason": "first check"},
+        "best": {"price": 212.0, "text": "€212", "currency": "EUR", "minutes": 185, "stops": 0, "set": "2026-10-25T08:00", "reason": "LOW PRICE alert"}
+      }
+    },
+    "fx02cd": {
+      "name": "Invented route two",
+      "last": {
+        "checked": "2026-10-27T08:00",
+        "currency": "EUR",
+        "cheapest": {"price": 640.0, "price_text": "€640", "currency": "EUR", "minutes": 420, "stops": 0},
+        "fastest": null,
+        "best_pick": null
+      },
+      "alert_ref": {"cheapest": 655.0, "cheapest_text": "€655", "best_value": null, "set": "2026-10-21T08:00", "reason": "first check"}
+    },
+    "fx03ef": {
+      "name": "Invented route three, no longer tracked",
+      "all_time_low": {"price": 99.0, "price_text": "€99", "currency": "EUR", "minutes": 95, "stops": 0, "seen": "2026-10-02T08:00"}
+    }
+  },
+  "runs": [
+    {"time": "2026-10-27T08:00", "pages": 3, "prices_by_route": {"fx01ab": {"a": {"cheapest": 235.0, "text": "€235"}}, "fx02cd": {"a": {"cheapest": 640.0, "text": "€640"}}}, "take": "Invented take: prices are steady."},
+    {"time": "2026-10-28T08:00", "pages": 3, "prices_by_route": {"fx01ab": {"a": {"cheapest": 230.0, "text": "€230"}}}, "take": "Invented take: route one is a little cheaper."}
+  ]
+}

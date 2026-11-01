@@ -70,6 +70,12 @@ DEFAULT_CONFIG = {
     "update_check": True,      # ask GitHub for a newer release when Settings opens, at most once a day (update.py)
     "routes": [],
 }
+# The fields of a route that Settings writes. save_config keeps any other field a route has on disk (written by
+# a newer or older AirFare), and any top-level key not in DEFAULT_CONFIG, so settings survive going either way.
+ROUTE_FIELDS = ("id", "name", "enabled", "origin", "destination", "trip", "depart_from", "depart_to", "return_from",
+                "return_to", "adults", "children", "cabin", "direct_only", "manual_pages")
+# Keys this version reads only to convert them (load_config, migrate.py): saving never brings them back.
+RETIRED_KEYS = ("min_drop_percent",)
 
 
 def ensure_dirs() -> None:
@@ -143,8 +149,20 @@ def _open_keys(cfg: dict) -> None:
 
 
 def save_config(cfg: dict) -> None:
-    """Write the settings with the API keys encrypted (the caller's dict keeps them in plain text)."""
+    """Write the settings with the API keys encrypted (the caller's dict keeps them in plain text).
+
+    What this version doesn't know stays as it was on disk: top-level keys outside DEFAULT_CONFIG and route
+    fields outside ROUTE_FIELDS (matched by route id), so a newer AirFare's settings survive a save here."""
     stored = {k: v for k, v in cfg.items() if k != "unreadable_keys"}
+    on_disk = read_json(CONFIG_FILE, {})
+    if isinstance(on_disk, dict):
+        for k, v in on_disk.items():
+            if k not in stored and k not in DEFAULT_CONFIG and k not in RETIRED_KEYS and k != "unreadable_keys":
+                stored[k] = v
+        before = {r.get("id"): r for r in on_disk.get("routes") or [] if isinstance(r, dict) and r.get("id")}
+        if isinstance(stored.get("routes"), list):
+            stored["routes"] = [{**{k: v for k, v in before.get(r.get("id"), {}).items() if k not in ROUTE_FIELDS}, **r}
+                                if isinstance(r, dict) else r for r in stored["routes"]]
     for name in KEYS:
         if stored.get(name):
             stored[name] = secrets.protect(stored[name], name)

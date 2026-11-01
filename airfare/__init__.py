@@ -2,6 +2,6 @@
 keeps the price history, optionally asks an AI analyst for its pick, and notifies you when a fare reaches your
 target."""
 
-__version__ = "1.4.1"
+__version__ = "1.5.0"
 # The GitHub repository "Check for updates" asks for the latest release ("owner/name"); empty: no update checks.
 __repo__ = "kono-mika/airfare"

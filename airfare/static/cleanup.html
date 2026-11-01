@@ -168,6 +168,19 @@ button:disabled { opacity: .45; cursor: default; }
     </div>
   </section>
 
+  <section class="block split" aria-labelledby="h-backups">
+    <div class="block-head"><!--ICON:folder-->
+      <div><h2 id="h-backups" data-i18n>Backups before updates</h2><p data-i18n>Before an update changes your data, AirFare copies it here. The newest 3 are kept, and Start over leaves them alone.</p></div>
+    </div>
+    <div class="panel">
+      <div class="list" id="bk-list"></div>
+      <div class="actions">
+        <button class="btn danger" id="bk-go" disabled></button>
+        <button class="btn danger" id="bk-all" disabled data-i18n>Delete every backup</button>
+      </div>
+      <p class="muted" style="margin-top:10px" data-i18n>To go back to a backup, close AirFare and copy the files in it into the data folder.</p>
+    </div>
+  </section>
   <section class="block split danger-zone" aria-labelledby="h-all">
     <div class="block-head"><!--ICON:warning-->
       <div><h2 id="h-all" data-i18n>Start over</h2><p data-i18n>Everything AirFare learned from checks: price history, lookups, dashboard, alert references and reports.</p></div>
@@ -273,6 +286,18 @@ function render() {
     $("#conv-list").appendChild(row);
   }
   $("#conv-go").disabled = !conv.length;
+  $("#bk-list").innerHTML = "";
+  if (!(S.backups || []).length) $("#bk-list").appendChild(note(t("No backups yet.")));
+  for (const b of S.backups || []) {
+    const row = document.createElement("label");
+    row.innerHTML = `<input type="checkbox"><span class="name"></span><span class="badge"></span>`;
+    $("input", row).value = b.name;
+    $(".name", row).textContent = t("AirFare {version}, saved {when}", {version: b.app, when: day(b.created) + " " + String(b.created).slice(11, 16)});
+    $(".badge", row).textContent = size(b.bytes);
+    $("input", row).addEventListener("change", renderBackups);
+    $("#bk-list").appendChild(row);
+  }
+  renderBackups();
 
   const a = S.auto || {};
   $("#auto-records").value = a.records_days ?? "";
@@ -292,6 +317,12 @@ function renderDash() {
   $("#dash-earlier").disabled = !earlier;
 }
 
+function renderBackups() {
+  const n = chosen("#bk-list").length;
+  $("#bk-go").textContent = n ? tn(n, "Delete {n} backup|Delete {n} backups") : t("Tick the backups to delete");
+  $("#bk-go").disabled = !n;
+  $("#bk-all").disabled = !(S.backups || []).length;
+}
 // What each button would delete, asked of AirFare as a dry run.
 const recOpts = () => ({route_id: $("#rec-route").value, source: $("#rec-source").value,
                         older_than_days: $("#rec-days").value, past_trips: $("#rec-past").checked});
@@ -348,6 +379,8 @@ $("#rep-go").onclick = () => act("reports", {older_than_days: $("#rep-days").val
 $("#rep-days").addEventListener("input", () => later("rep", previewReports));
 $("#log-go").onclick = () => act("logs", {}, t("Clear AirFare's log?"));
 $("#conv-go").onclick = () => act("conversations", {providers: chosen("#conv-list")}, t("Start fresh conversations with the analysts you picked?"));
+$("#bk-go").onclick = () => act("backups", {names: chosen("#bk-list")}, t("Delete these backups? AirFare can't go back to them afterwards."));
+$("#bk-all").onclick = () => act("backups", {everything: true}, t("Delete every backup? AirFare can't go back to them afterwards."));
 $("#auto-go").onclick = async () => {
   try {
     const d = await api("/api/cleanup/auto", {records_days: $("#auto-records").value, reports_days: $("#auto-reports").value,
@@ -358,13 +391,14 @@ $("#auto-go").onclick = async () => {
 $("#all-go").onclick = () => act("everything", {}, t("Delete all check history? Price history, lookups, dashboard, alert references and reports are deleted for good. Your routes, settings and keys stay."));
 
 window.airfareLanguage = lang => {          // the EN · ES · RU links in the top bar
-  const ticked = new Set(chosen("#dash-list")), unticked = [...document.querySelectorAll("#conv-list input:not(:checked)")].map(i => i.value);
+  const ticked = new Set(chosen("#dash-list")), backups = new Set(chosen("#bk-list")), unticked = [...document.querySelectorAll("#conv-list input:not(:checked)")].map(i => i.value);
   const typed = ["#auto-records", "#auto-reports", "#auto-dashboard"].map(s => $(s).value);
   LANG = lang; translateStatic(); render();
   document.querySelectorAll("#dash-list input").forEach(i => { i.checked = ticked.has(i.value); });
+  document.querySelectorAll("#bk-list input").forEach(i => { i.checked = backups.has(i.value); });
   document.querySelectorAll("#conv-list input").forEach(i => { if (unticked.includes(i.value)) i.checked = false; });
   ["#auto-records", "#auto-reports", "#auto-dashboard"].forEach((s, i) => { $(s).value = typed[i]; });
-  renderDash(); $("#conv-go").disabled = !chosen("#conv-list").length;
+  renderDash(); renderBackups(); $("#conv-go").disabled = !chosen("#conv-list").length;
   if (lastMsg) msg(t(lastMsg[0], lastMsg[2]), lastMsg[1], lastMsg[0], lastMsg[2]);
 };
 translateStatic();

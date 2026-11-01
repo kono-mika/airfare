@@ -1,0 +1,7 @@
+[
+ {"role": "system", "content": "Invented instructions for the test analyst."},
+ {"role": "user", "content": "Invented check: route one ZZAA to ZZBB, cheapest €230 direct."},
+ {"role": "assistant", "content": "Invented answer: €230 direct is the best value; nothing to alert."},
+ {"role": "user", "content": "Invented check: route one ZZAA to ZZBB, cheapest €212 direct."},
+ {"role": "assistant", "content": "Invented answer: €212 is a new low for these dates."}
+]

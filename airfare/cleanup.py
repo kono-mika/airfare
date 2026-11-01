@@ -2,8 +2,9 @@
 
 The Clean up page (static/cleanup.html) shows a summary and runs one action at a time. Every action can
 run as a dry run first, so the page can say exactly how much a button will delete before it's pressed.
-Settings and API keys are never touched here. Automatic clean-up (Settings → cfg["cleanup"]) runs the
-same actions after every check.
+Settings and API keys are never touched here. The backups made before updates (migrate.py) are listed with
+their size and deleted only when picked (or all together); Start over keeps them. Automatic clean-up
+(Settings → cfg["cleanup"]) runs the same actions after every check.
 """
 from __future__ import annotations
 
@@ -12,13 +13,13 @@ import re
 from collections import Counter
 from datetime import date, datetime, timedelta
 
-from . import dashboard, deepseek, i18n, pricelog
+from . import dashboard, deepseek, i18n, migrate, pricelog
 from .config import LOGS_DIR, REPORTS_DIR, load_history, load_state, save_history, save_state
 from .i18n import Problem
 
 log = logging.getLogger(__name__)
 
-ACTIONS = ("records", "lookups", "dashboard", "alerts", "reports", "logs", "conversations", "everything")
+ACTIONS = ("records", "lookups", "dashboard", "alerts", "reports", "logs", "conversations", "backups", "everything")
 PROVIDERS = ("claude", "deepseek", "openai", "chatgpt")
 
 
@@ -101,6 +102,7 @@ def summary(cfg: dict) -> dict:
         "reports": {"files": len(reports), "bytes": sum(f.stat().st_size for f in reports)},
         "logs": {"bytes": sum(f.stat().st_size for f in logs)},
         "conversations": _conversations(load_state()),
+        "backups": migrate.list_backups(),
         "auto": cfg.get("cleanup") or {},
     }
 
@@ -249,6 +251,19 @@ def _conversations_reset(o: dict, dry: bool) -> int:
     return len(active)
 
 
+def _backups(o: dict, dry: bool) -> int:
+    """The backups made before updates: the ones named, or all of them."""
+    everything = _yes(o, "everything")
+    names = o.get("names") if isinstance(o.get("names"), list) else []
+    if not everything and not names:
+        raise Problem("Pick the backups to delete")
+    known = {b["name"] for b in migrate.list_backups()}
+    wanted = known if everything else {n for n in names if isinstance(n, str) and n in known}
+    if not dry and wanted:
+        return migrate.delete_backups(sorted(wanted))
+    return len(wanted)
+
+
 def run(action: str, o: dict, cfg: dict, dry: bool = False) -> int:
     """Do (or with dry=True only count) one clean-up action. Returns how many things it removes."""
     lang = cfg.get("language")
@@ -266,8 +281,10 @@ def run(action: str, o: dict, cfg: dict, dry: bool = False) -> int:
         return _logs(o, dry)
     if action == "conversations":
         return _conversations_reset(o, dry)
+    if action == "backups":
+        return _backups(o, dry)
     if action == "everything":
-        # Everything AirFare learned from checks; settings, keys and the analysts' accounts stay.
+        # Everything AirFare learned from checks; settings, keys, the analysts' accounts and backups stay.
         n = _records({"everything": True}, dry) + _lookups({"everything": True}, dry)
         n += _dashboard({"everything": True}, dry, lang) + _alerts({"everything": True}, dry)
         n += _reports({"everything": True}, dry)
@@ -300,6 +317,8 @@ def clean_auto(raw: dict) -> dict:
 def message(lang: str | None, removed: int, action: str) -> str:
     if action == "logs":
         return i18n.tr("The log is cleared.", lang)
+    if action == "backups":
+        return i18n.trn(removed, "Deleted {n} backup.|Deleted {n} backups.", lang)
     if action == "conversations":
         return i18n.trn(removed, "{n} conversation will start fresh at the next check.|"
                                  "{n} conversations will start fresh at the next check.", lang)
