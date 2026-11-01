@@ -10,8 +10,8 @@ import socket
 import time
 from datetime import datetime
 
-from . import (analyst, cleanup, dashboard, deepseek, extension, historypage, i18n, limits, links, money, notify,
-               openai_api, platform, pricelog, report, results, serpapi)
+from . import (analyst, cleanup, dashboard, deepseek, extension, filters, historypage, i18n, limits, links, money,
+               notify, openai_api, platform, pricelog, report, results, serpapi)
 from .config import (LOCK_FILE, LOGS_DIR, REPORTS_DIR, ensure_dirs, load_config, load_history, load_state,
                      save_history, save_state)
 from .i18n import tr
@@ -189,6 +189,7 @@ async def run_check(automatic: bool = False) -> int:
     currency = cfg.get("currency") or money.DEFAULT
     rates = await asyncio.to_thread(money.rates)
     data = report.collect(fetched, currency, rates)
+    filters.apply(data, currency)              # from here on, only the fares that match each route's filters exist
     when = datetime.now()
     pricelog.add(pricelog.records_from_check(data, when))
     write_history_page(cfg)
@@ -199,9 +200,11 @@ async def run_check(automatic: bool = False) -> int:
     log.info("price document: %s", prices_path)
 
     history = load_history()
+    filters.restart_references(history, cfg.get("routes") or [], currency)
     run_info = {"pages": len(data), "ok": sum(1 for d in data if d.result.status == "ok"), "currency": currency,
                 "prices": prices_path.name, "prices_by_route": report.price_summary(data)}
-    if not any(d.parsed and d.parsed.flights for d in data) and not any(d.result.text.strip() for d in data):
+    # (Fares the filters hid were read, even if they were all of them.)
+    if not any(d.parsed and (d.parsed.flights or d.parsed.hidden) for d in data) and not any(d.result.text.strip() for d in data):
         reasons = list(dict.fromkeys(f"{d.result.source}: {d.result.note}" for d in data if d.result.note))
         notify.toast(tr("AirFare couldn't read any prices", lang),
                      "; ".join(reasons)[:250] or tr("See the log for details.", lang), prices_path)

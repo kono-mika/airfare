@@ -100,6 +100,7 @@ def all_keys() -> tuple[set[str], set[str]]:
     # Notes sources and the server attach to results and replies, which the pages translate when shown.
     keys |= {"No SerpApi key yet", "No DeepSeek key yet", "AirFare was updated. Close this tab and open AirFare Settings again.",
              "Aviasales needs 3-letter airport or city codes and dates within the coming year",
+             "Google Flights found no flights for these dates and this route's filters",
              "page loaded but no flight results were found", "no prices found on the page",
              "the AirFare extension didn't respond (is it installed and enabled on your browser's extensions page?)",
              "the AirFare add-on didn't respond (Firefox removes an add-on loaded in about:debugging when it restarts: "

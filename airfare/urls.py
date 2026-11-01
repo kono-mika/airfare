@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from urllib.parse import parse_qs, urlencode, urlparse
 
 CABINS = ("economy", "premiumeconomy", "business", "first")
+FILTER_FIELDS = ("price_min", "price_max", "max_stops", "exclude_airports")     # a route's filters (see filters.py)
 
 # The first two path parts are localized: /transport/flights/, /transporte/vuelos/, /transports/vols/, ...
 _PATH_RE = re.compile(r"^/[^/]+/[^/]+/([a-z0-9]{2,8})/([a-z0-9]{2,8})/(\d{6})(?:/(\d{6}))?(?:/|$)", re.I)
@@ -88,6 +89,12 @@ AVIASALES_SITE = "www.aviasales.ru"
 AVIASALES_CLASS = {"economy": "", "premiumeconomy": "w", "business": "c", "first": "f"}
 CITY_CODES = {"lond": "LON", "pari": "PAR", "nyca": "NYC", "rome": "ROM", "mila": "MIL", "stoc": "STO",
               "tyoa": "TYO", "chia": "CHI", "wasa": "WAS", "osaa": "OSA", "sela": "SEL", "mosc": "MOW"}
+# Skyscanner city codes → their airports (what Google Flights searches, and what a route's filters leave out).
+CITY_AIRPORTS = {
+    "lond": "LHR,LGW,STN,LTN,LCY,SEN", "pari": "CDG,ORY,BVA", "nyca": "JFK,EWR,LGA", "rome": "FCO,CIA",
+    "mila": "MXP,LIN,BGY", "stoc": "ARN,BMA,NYO", "tyoa": "HND,NRT", "chia": "ORD,MDW", "wasa": "IAD,DCA,BWI",
+    "osaa": "KIX,ITM", "sela": "ICN,GMP", "mosc": "SVO,DME,VKO",
+}
 AVIASALES_DAYS = 360     # its links carry no year, so only dates within the coming year are unambiguous
 
 
@@ -149,6 +156,12 @@ def page_key(depart: str | None, ret: str | None) -> str:
     return f"{depart or ''}|{ret or ''}"
 
 
+def _direct(route: dict) -> bool:
+    """Whether Skyscanner should list direct flights first: the "Prefer direct flights" box, or Direct only."""
+    stops = route.get("max_stops")
+    return bool(route.get("direct_only")) or (stops == 0 and stops is not False)
+
+
 def route_label(route: dict) -> str:
     if route.get("name"):
         return route["name"]
@@ -177,7 +190,7 @@ def route_pages(route: dict, domain: str, today: date | None = None) -> list[dic
                 "origin": route["origin"], "destination": route["destination"],
                 "url": build_url(domain, route["origin"], route["destination"], d, r,
                                  int(route.get("adults") or 1), route.get("cabin") or "economy",
-                                 bool(route.get("direct_only")), route.get("children") or []),
+                                 _direct(route), route.get("children") or []),
             }
 
     for i, manual in enumerate(route.get("manual_pages") or []):
@@ -212,7 +225,9 @@ def plan_pages(cfg: dict, today: date | None = None) -> tuple[list[dict], int]:
             if i < len(pages) and len(out) < cap:
                 # A pasted link's own travellers and cabin win over the route card's.
                 kids = pages[i].get("children")
+                chosen = {k: route[k] for k in FILTER_FIELDS if route.get(k) not in (None, "", [])}
                 out.append({**pages[i], "route_id": route["id"], "route_name": route_label(route),
+                            **({"filters": chosen} if chosen else {}),
                             "adults": pages[i].get("adults") or int(route.get("adults") or 1),
                             "children": list(kids if kids is not None else (route.get("children") or [])),
                             "cabin": pages[i].get("cabin") or route.get("cabin") or "economy",

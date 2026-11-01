@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from urllib.parse import urlparse
 
-from . import analyst, brand, chatgpt, deepseek, i18n, money, openai_api, pricelog
+from . import analyst, brand, chatgpt, deepseek, filters, i18n, money, openai_api, pricelog
 
 DEEPSEEK_LABELS = {"deepseek-flash": "V4.1 Flash", "deepseek-v4-pro": "V4 Pro"}
 
@@ -25,7 +25,7 @@ def routes_info(cfg: dict, records: list[dict]) -> list[dict]:
                     "return": r.get("trip") == "return", "depart_from": r.get("depart_from") or "",
                     "depart_to": r.get("depart_to") or r.get("depart_from") or "",
                     "return_from": r.get("return_from") or "", "return_to": r.get("return_to") or r.get("return_from") or "",
-                    "active": True})
+                    "active": True, "filters": filters.stamped(r, cfg.get("currency") or money.DEFAULT)})
     for rec in records:
         if rec["route_id"] not in seen:
             seen.add(rec["route_id"])
@@ -137,6 +137,7 @@ th, td { border-bottom:1px solid var(--line); padding:6px 8px; text-align:left; 
 th { color:var(--muted); font-weight:600; } tr.low td { background:var(--warn-bg); }
 td.x button { border:0; background:transparent; color:var(--muted); cursor:pointer; font-size:16px; }
 td .site { color:var(--muted); font-size:12px; margin-left:4px; }
+td .site.other { color:var(--warn-fg); }
 .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
 .result { border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-top:10px; }
 .result.found { border-color:var(--ok); } .result .big { font:600 24px var(--display); }
@@ -230,6 +231,32 @@ function money(v) {      // as money.fmt does: €214, $230, 15 400 ₽, 1 234 K
 if (!D.served) { document.querySelectorAll(".served, .del").forEach(e => e.hidden = true); $("#file-note").hidden = false; $("#lookup").hidden = true; }
 
 function route() { return D.routes.find(r => r.id === $("#route").value) || D.routes[0]; }
+// The filters a record was taken under, and whether they differ from its route's current ones (filters.same).
+function filterText(f) {
+  f = f || {};
+  const amount = v => !f.currency || f.currency === D.currency ? money(v) : `${Math.round(v)} ${f.currency}`;
+  const parts = [];
+  if (f.price_min != null && f.price_max != null) parts.push(`${amount(f.price_min)}–${amount(f.price_max)}`);
+  else if (f.price_min != null) parts.push(t("from {price}", {price: amount(f.price_min)}));
+  else if (f.price_max != null) parts.push(t("up to {price}", {price: amount(f.price_max)}));
+  if (f.max_stops === 0) parts.push(t("direct only"));
+  else if (f.max_stops != null) parts.push(tn(f.max_stops, "up to {n} transfer|up to {n} transfers"));
+  if ((f.exclude_airports || []).length) parts.push(t("not via {airports}", {airports: f.exclude_airports.join(", ")}));
+  return parts.join(", ");
+}
+function otherFilters(x, r) {
+  if (!r || !r.active) return false;
+  const a = x.filters || {}, b = r.filters || {};
+  const differs = k => a.currency && b.currency && a.currency !== b.currency ? (a[k] == null) !== (b[k] == null) : (a[k] ?? null) !== (b[k] ?? null);
+  return differs("price_min") || differs("price_max") || (a.max_stops ?? null) !== (b.max_stops ?? null)
+    || (a.exclude_airports || []).join() !== (b.exclude_airports || []).join();
+}
+function filterMark(x, r) {
+  const marks = (x.marks || []).map(m => `<span class="site">${esc(t(m))}</span>`).join("");
+  if (!otherFilters(x, r)) return marks;
+  const text = filterText(x.filters);
+  return marks + `<span class="site other">${esc(text ? t("taken under other filters: {filters}", {filters: text}) : t("taken without filters"))}</span>`;
+}
 function setDates(r) { $("#df").value = r.depart_from; $("#dt").value = r.depart_to; $("#rf").value = r.return_from; $("#rt").value = r.return_to; }
 function filtered() {
   const r = route(); if (!r) return [];
@@ -258,7 +285,7 @@ function render() {
   chart(recs);
   $("#rec-title").textContent = t("Records ({n})", {n: recs.length});
   $("#rows").innerHTML = recs.map(x => `<tr class="${low && x.id === low.id ? "low" : ""}"><td>${esc(x.time.replace("T", " "))}</td><td>${esc(x.source)}</td>
-    <td>${esc(day(x.depart))}</td><td>${esc(x.return ? day(x.return) : t("one-way"))}</td><td><strong>${esc(x.price_text)}</strong>${x.site_price ? `<span class="site">${esc(x.site_price)}</span>` : ""}</td>
+    <td>${esc(day(x.depart))}</td><td>${esc(x.return ? day(x.return) : t("one-way"))}</td><td><strong>${esc(x.price_text)}</strong>${x.site_price ? `<span class="site">${esc(x.site_price)}</span>` : ""}${filterMark(x, r)}</td>
     <td>${esc(x.airlines)}</td><td>${esc(stops(x.stops))}</td><td>${dur(x.minutes || 0)}</td>
     <td>${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(t("open"))}</a>` : ""}</td>
     <td class="x del" ${D.served ? "" : "hidden"}><button title="${esc(t("Delete this record"))}" aria-label="${esc(t("Delete this record"))}" data-id="${esc(x.id)}">×</button></td></tr>`).join("");
@@ -390,10 +417,11 @@ $("#del-route").onclick = () => {
 $("#csv").onclick = () => {      // the records shown, as a spreadsheet file (works opened from disk too)
   const recs = filtered().sort((a, b) => a.time.localeCompare(b.time) || a.price - b.price);
   const head = ["seen", "source", "route", "origin", "destination", "depart", "return", "price", "currency", "site_price",
-                "airlines", "stops", "minutes", "url"];
+                "airlines", "stops", "minutes", "url", "filters"];
   const cell = v => { const s = String(v ?? ""); return /[",;\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   const rows = recs.map(x => [x.time.replace("T", " "), x.source, x.route_name, x.origin, x.destination, x.depart, x.return || "",
-                              x.price, D.currency, x.site_price || "", x.airlines, x.stops, x.minutes, x.url || ""]);
+                              x.price, D.currency, x.site_price || "", x.airlines, x.stops, x.minutes, x.url || "",
+                              filterText(x.filters)]);
   const csv = "\uFEFF" + [head, ...rows].map(r => r.map(cell).join(",")).join("\r\n");   // the BOM makes Excel read UTF-8
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv], {type: "text/csv;charset=utf-8"}));

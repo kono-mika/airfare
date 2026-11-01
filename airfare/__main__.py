@@ -315,7 +315,8 @@ def _starting(cmd: str, check_install: bool) -> int | None:
         upgrade.note(problem)
         if sys.stderr:
             print(problem, file=sys.stderr)
-        return 4
+        upgrade.tell_desktop()
+        return upgrade.UNFINISHED
     if cmd in ("migrate", "login"):
         return None
     try:

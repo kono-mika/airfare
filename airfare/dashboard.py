@@ -13,7 +13,7 @@ import math
 import os
 from datetime import datetime
 
-from . import brand, i18n, limits, markup, money
+from . import brand, filters, i18n, limits, markup, money
 from .config import DATA_DIR, REPORTS_DIR, read_json, write_json
 from .extract import Flight
 from .i18n import tr, trn
@@ -25,7 +25,8 @@ SOURCE_DASH = {"Skyscanner": "", "Aviasales": "2 4", "Google Flights": "6 4"}
 TREND_RUNS = 30
 LIST_SIZE = 3
 KIND_LABELS = {"cheapest": "Cheapest", "fastest": "Fastest", "best": "Best value"}
-TAGS = {"overnight layover": "overnight layover", "visa needed": "visa needed", "self-transfer": "self-transfer"}
+TAGS = {"overnight layover": "overnight layover", "visa needed": "visa needed", "self-transfer": "self-transfer",
+        filters.CONNECTIONS_UNKNOWN: filters.CONNECTIONS_UNKNOWN, filters.PRICE_UNKNOWN: filters.PRICE_UNKNOWN}
 
 e = html.escape
 
@@ -73,7 +74,7 @@ def _merged(pages: list[PageData], source: str) -> dict[str, list[tuple[Flight, 
 def _cheapest(pages: list[PageData], source: str | None = None, rules: dict | None = None) -> tuple[Flight, PageData] | None:
     """The cheapest flight in AirFare's currency (of one source), counting only flights the alert filters allow."""
     found = [(f, pd) for pd in pages if pd.parsed and pd.parsed.comparable and (source is None or pd.result.source == source)
-             for f in pd.parsed.flights if not rules or usable(f, rules)]
+             for f in pd.parsed.flights if usable(f, rules or {})]
     return min(found, key=lambda x: x[0].price) if found else None
 
 
@@ -101,7 +102,8 @@ def _flight_row(f: Flight, pd: PageData, lang: str) -> str:
     if len(f.legs) == 1 and pd.page.get("return"):
         legs += (f'<div class="leg muted"><span class="day">{e(i18n.day(_dt(pd.page["return"]), lang))}</span>'
                  f'<span>{e(tr("return picked on {source}", lang, source=pd.result.source))}</span></div>')
-    notes = [tr(TAGS.get(t, t.replace("_", " ")), lang) for t in f.tags if t not in ("cheapest", "shortest", "google best")]
+    notes = [tr(TAGS.get(t, t.replace("_", " ")), lang) for t in [*f.marks, *f.tags]
+             if t not in ("cheapest", "shortest", "google best")]
     if f.self_transfer:
         notes.append(tr("self-transfer", lang))
     if f.orig_text:
@@ -119,6 +121,8 @@ def _source_column(pages: list[PageData], source: str, lang: str) -> str:
     if not any(merged.values()):
         notes = sorted({pd.result.note for pd in pages if pd.result.source == source and pd.result.note})
         text = tr("No prices this time", lang) + (": " + tr(notes[0], lang) if notes else ".")
+        if filters.hidden_counts([pd for pd in pages if pd.result.source == source]):
+            text = tr("No fares match this route's filters.", lang)
         return f'<section class="col">{head}<p class="muted">{e(text)}</p></section>'
     titles = {"best": tr("Best (as ranked by {source})", lang, source=source), "cheapest": tr("Cheapest", lang),
               "fastest": tr("Fastest", lang)}
@@ -246,6 +250,17 @@ def _alert_note(t: dict | None, lang: str) -> str:
     return tr("alert at {price}", lang, price=t["max_text"]) if t.get("max_text") else ""
 
 
+def _hidden_note(pages: list[PageData], lang: str) -> str:
+    """'5 fares hidden by this route's filters (price: 3, airports: 2)' for the route's header, or nothing."""
+    counts = filters.hidden_counts(pages)
+    if not counts:
+        return ""
+    why = {"price": tr("price: {n}", lang, n=counts.get("price")), "transfers": tr("transfers: {n}", lang, n=counts.get("transfers")),
+           "airports": tr("airports: {n}", lang, n=counts.get("airports"))}
+    return (trn(sum(counts.values()), "{n} fare hidden by this route's filters|{n} fares hidden by this route's filters", lang)
+            + " (" + ", ".join(why[r] for r in counts) + ")")
+
+
 def _route_section(rid: str, pages: list[PageData], history: dict, targets: dict, summary: dict,
                    alerted: list[str], analyst_name: str, lang: str, currency: str, rates: dict | None,
                    rules: dict, site: str = "") -> str:
@@ -292,6 +307,9 @@ def _route_section(rid: str, pages: list[PageData], history: dict, targets: dict
         value = float(rs.get("best_value"))
     except (TypeError, ValueError):
         value = None
+    if value is not None and first.get("filters") and not any(
+            abs(f.price - value) < 0.5 for pd in pages if pd.parsed and pd.parsed.comparable for f in pd.parsed.flights):
+        value = None                       # the analyst picked a fare the route's filters hide (or none it captured)
     if value is not None and math.isfinite(value) and value > 0:
         text = rs.get("best_value_text") if isinstance(rs.get("best_value_text"), str) else ""
         tiles.append(("best", tr("Best value", lang), money.fmt(value, currency),
@@ -322,8 +340,9 @@ def _route_section(rid: str, pages: list[PageData], history: dict, targets: dict
         kinds = ", ".join(tr(KIND_LABELS[k], lang).lower() for k in alerted)
         badge = f'<span class="badge">{e(tr("Low price", lang))}: {e(kinds)}</span>'
     columns = "".join(_source_column(pages, s, lang) for s in sources)
+    hidden = _hidden_note(pages, lang)
     return (f'<section class="route"><div class="rhead">{codes}<div><h2>{e(name)} {badge}</h2>'
-            f'<p class="muted">{e(when)}</p></div></div>'
+            f'<p class="muted">{e(when)}</p>' + (f'<p class="muted">{e(hidden)}</p>' if hidden else "") + '</div></div>'
             f'<div class="kpis">{tile_html}</div>'
             f'<h3 class="sec">{e(tr("Price trend", lang))}</h3><div class="legend">{legend}</div>{chart}'
             f'{_date_grid(pages, sources, lang)}'

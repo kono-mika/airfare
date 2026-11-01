@@ -17,7 +17,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from . import (__version__, analyst, brand, chatgpt, cleanup, dashboard, deepseek, extension, historypage, i18n,
+from . import (__version__, analyst, brand, chatgpt, cleanup, dashboard, deepseek, extension, filters, historypage, i18n,
                limits, links, markup, migrate, money, openai_api, platform, pricelog, report, research, runner, serpapi,
                service, tray, update)
 from .i18n import Problem
@@ -160,6 +160,35 @@ def clean_alerts(raw: dict, cfg: dict, rates: dict | None) -> dict:
     return out
 
 
+def clean_filters(r: dict, old: dict | None, old_currency: str, currency: str, rates: dict | None) -> tuple[dict, str | None]:
+    """A route's filters from the form, and what's wrong with them, if anything. A price range left as it was
+    follows a currency change at today's rate, as the alert limits do."""
+    out, problem = {}, None
+    for k in ("price_min", "price_max"):
+        try:
+            out[k] = float(r.get(k)) or None if r.get(k) not in (None, "") else None
+        except (TypeError, ValueError):
+            out[k], problem = None, "the price range should be two numbers, with From no higher than To"
+    low, high = out["price_min"], out["price_max"]
+    if any(v is not None and not 0 < v <= 10_000_000 for v in (low, high)) or (low is not None and high is not None and low > high):
+        problem = "the price range should be two numbers, with From no higher than To"
+    if old and old_currency != currency:
+        for k in ("price_min", "price_max"):
+            if out[k] is not None and out[k] == old.get(k):
+                converted = money.convert(out[k], old_currency, currency, rates or {})
+                if converted is None:
+                    raise Problem("There's no exchange rate for {currency} yet, so your price limits can't be "
+                                  "converted. Connect to the internet and save again.", currency=currency)
+                out[k] = round(converted)
+    stops = str(r.get("max_stops") if r.get("max_stops") is not None else "").strip()
+    out["max_stops"] = int(stops) if stops in ("0", "1", "2") else None
+    airports = filters.clean_codes(r.get("exclude_airports") or [])
+    if airports is None:
+        problem = "excluded transfer airports should be 3-letter airport codes or city codes like LOND, separated by commas"
+    out["exclude_airports"] = airports or []
+    return out, problem
+
+
 def new_key(raw: dict, cfg: dict, name: str) -> str:
     """The form never receives saved API keys, so a blank field keeps the saved key; "Remove" clears it."""
     if name in (raw.get("clear_keys") or []):
@@ -204,7 +233,8 @@ def clean_config(raw: dict, problems: dict | None = None, renew_ids: bool = Fals
     currency = str(raw.get("currency") or cfg.get("currency") or money.DEFAULT).strip().upper()
     if not re.match(r"^[A-Z]{3}$", currency):
         raise Problem("Pick a currency from the list")
-    rates = money.rates() if currency != (cfg.get("currency") or money.DEFAULT) else None
+    old_currency = cfg.get("currency") or money.DEFAULT
+    rates = money.rates() if currency != old_currency else None
     alerts = clean_alerts({**raw, "currency": currency}, cfg, rates)
     max_hours = _number(raw.get("alert_max_hours"), "The longest trip for alerts (hours)", 1, 99)
     language = raw.get("language") or cfg.get("language") or "en"
@@ -299,6 +329,7 @@ def clean_config(raw: dict, problems: dict | None = None, renew_ids: bool = Fals
         origin = str(r.get("origin") or "").strip().lower()
         dest = str(r.get("destination") or "").strip().lower()
         children = clean_ages(r.get("children"))
+        chosen, bad_filters = clean_filters(r, before.get(r.get("id")), old_currency, currency, rates)
         route = {
             "id": r.get("id") or uuid.uuid4().hex[:6],
             "name": str(r.get("name") or "").strip(),
@@ -312,6 +343,7 @@ def clean_config(raw: dict, problems: dict | None = None, renew_ids: bool = Fals
             "cabin": r.get("cabin") if r.get("cabin") in CABINS else "economy",
             "direct_only": bool(r.get("direct_only")),
             "manual_pages": manual,
+            **chosen,
         }
         old = before.get(route["id"])
         if renew_ids and old and _trip(old) and _trip(route) and _trip(old) != _trip(route):
@@ -334,6 +366,8 @@ def clean_config(raw: dict, problems: dict | None = None, renew_ids: bool = Fals
             problem = "paste the address of a Skyscanner search results page (https://www.skyscanner…/transport/flights/…)"
         if not problem and children is None:
             problem = "children's ages should be whole numbers from 0 to 15 (at most 8), like 4, 9"
+        if not problem and bad_filters:
+            problem = bad_filters
         if problem:
             if problems is None:
                 raise Problem("Route {i}: {problem}", i=i, problem=problem)
@@ -600,11 +634,14 @@ class Handler(BaseHTTPRequestHandler):
                 problems: dict = {}
                 return self._json(preview(clean_config(body.get("config") or {}, problems), problems))
             if self.path == "/api/save":
+                before = load_config()
                 cfg = clean_config(body.get("config") or {}, renew_ids=True)
                 save_config(cfg)
                 if service.needed(cfg) and cfg["routes"] and service.start_in_background():
                     log.info("started the background checker (interval checks or the tray icon)")
-                return self._json({"config": public_config(cfg), "preview": preview(cfg), "service": service.status()})
+                restart = filters.changed_routes(before.get("routes") or [], cfg["routes"], before.get("currency"), cfg.get("currency"))
+                return self._json({"config": public_config(cfg), "preview": preview(cfg), "service": service.status(),
+                                   "filters_changed": [route_label(r) for r in restart]})
             if self.path == "/api/update":
                 return self._json(update.check(force=bool(body.get("force"))))
             if self.path == "/api/keys":

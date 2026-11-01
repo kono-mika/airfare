@@ -187,7 +187,8 @@ code { background: var(--soft); border-radius: 5px; padding: 1px 6px; font-size:
   <section class="block" aria-labelledby="h-flights">
     <div class="block-head"><!--ICON:ticket-->
       <div><h2 id="h-flights" data-i18n>Flights to track</h2>
-        <p data-i18n>Airport or city codes, and an exact date or a range of dates.</p></div>
+        <p data-i18n>Airport or city codes, and an exact date or a range of dates.</p>
+        <p data-i18n>A route's filters hide fares everywhere, while the alert price limits decide when to alert about the fares left.</p></div>
     </div>
     <div class="intro" id="intro" hidden>
       <svg viewBox="0 0 130 80" aria-hidden="true">
@@ -569,6 +570,23 @@ code { background: var(--soft); border-radius: 5px; padding: 1px 6px; font-size:
         <div class="link-list"></div>
         <button class="btn" data-act="add-manual" style="margin-top:8px" data-i18n>+ Another link</button>
       </div>
+      <div class="grid" style="margin-top:12px">
+        <div class="f"><span><span data-i18n>Price range</span> (<span class="cur-sign"></span>)</span>
+          <div class="pair">
+            <label class="f" style="flex:1"><span data-i18n-html="html:price-from">From</span> <input type="number" data-k="price_min" min="0" step="any"></label>
+            <label class="f" style="flex:1"><span data-i18n-html="html:price-to">To</span> <input type="number" data-k="price_max" min="0" step="any"></label>
+          </div>
+        </div>
+        <label class="f"><span data-i18n>Max transfers per direction</span>
+          <select data-k="max_stops">
+            <option value="" data-i18n>Any</option>
+            <option value="0" data-i18n>Direct only</option>
+            <option value="1" data-i18n>Up to 1</option>
+            <option value="2" data-i18n>Up to 2</option>
+          </select></label>
+        <label class="f"><span data-i18n>Excluded transfer airports</span>
+          <input type="text" data-k="exclude_airports" data-i18n-ph="none, or e.g. IST, LOND"></label>
+      </div>
       <details class="pages" open>
         <summary></summary>
         <div class="page-list"></div>
@@ -936,13 +954,14 @@ function routeCard(r) {
     if (inp.type === "checkbox") inp.checked = k === "enabled" ? r.enabled !== false : !!r[k];
     else inp.value = Array.isArray(r[k]) ? r[k].join(", ") : (r[k] ?? "");
     inp.addEventListener("input", () => {
-      r[k] = inp.type === "checkbox" ? inp.checked : inp.type === "number" ? Number(inp.value) : inp.value.trim();
+      r[k] = inp.type === "checkbox" ? inp.checked : inp.type === "number" ? (inp.value === "" ? null : Number(inp.value)) : inp.value.trim();
       if (k === "enabled") el.classList.toggle("off", !inp.checked);
       paintStub(el, r);
       changed();
     });
   });
   el.classList.toggle("off", r.enabled === false);
+  el.querySelectorAll(".cur-sign").forEach(s => s.textContent = CURRENCIES[cfg.currency] || cfg.currency || "");
   const setTrip = trip => {
     r.trip = trip;
     el.querySelectorAll("[data-trip]").forEach(b => b.classList.toggle("on", b.dataset.trip === trip));
@@ -1065,6 +1084,9 @@ function changed() {
   }, 350);
 }
 
+function restartNote(routes) {
+  return t("Saved. The filters changed on {routes}, so their alert references restart from the next check: the old reference may be a fare that's now hidden.", {routes: routes.join(", ")});
+}
 async function save() {
   clearTimeout(previewTimer);        // its answer has the preview; a late one would say "Unsaved changes" again
   const sent = payload();
@@ -1080,6 +1102,7 @@ async function save() {
   cfg = data.config; cfg.routes.forEach(r => r._linkOnly = flags[r.id]);
   if (!cfg.routes.length) cfg.routes.push(newRoute(false));
   view = data.preview; svc = data.service || svc; dirty = false; render();
+  return data;
 }
 
 function setBusy(task) {
@@ -1114,10 +1137,11 @@ async function testLinks(routeId) {
 
 async function startTask(path, key) {
   try {
-    if (path === "/api/run" && dirty) await save();
+    const restart = path === "/api/run" && dirty ? (await save()).filters_changed || [] : [];
     await api(path, {});
     setBusy("check");
     say(key);
+    if (restart.length) msg(t(key) + " " + restartNote(restart));
     poll();
   } catch (e) { msg(e.message, "err"); }
 }
@@ -1311,7 +1335,13 @@ $("#serp-check").onclick = async () => {
     q.textContent = a.error ? t(a.error) : `${a.total_searches_left ?? a.plan_searches_left ?? "?"} (${a.plan_name || t("plan")})`;
   } catch (e) { q.textContent = e.message; }
 };
-$("#save").onclick = async () => { try { await save(); say("Saved. AirFare checks these on the schedule below.", "good"); } catch (e) { msg(e.message, "err"); } };
+$("#save").onclick = async () => {
+  try {
+    const restart = (await save()).filters_changed || [];
+    if (restart.length) msg(restartNote(restart), "good");
+    else say("Saved. AirFare checks these on the schedule below.", "good");
+  } catch (e) { msg(e.message, "err"); }
+};
 $("#test-all").onclick = () => testLinks(null);
 $("#run").onclick = () => startTask("/api/run", "Running a full check: opening pages, waiting for prices, asking your analyst…");
 setInterval(() => api("/api/heartbeat", {}).catch(() => say("AirFare's local server has stopped. Open AirFare again.", "err")), 20000);

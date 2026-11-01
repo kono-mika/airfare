@@ -315,7 +315,9 @@ def test_the_install_record_tells_when_the_code_is_newer_than_its_setup(tmp_path
 def test_python_m_airfare_stops_until_the_update_is_finished(monkeypatch, capsys):
     monkeypatch.setattr(upgrade, "mismatch", lambda *a, **k: "Run sh install.sh to finish the update.")
     monkeypatch.setattr(upgrade, "note", lambda text: None)
-    assert cli.main(["run"], check_install=True) == 4
+    monkeypatch.setattr(upgrade, "tell_desktop", lambda: None)
+    assert cli.main(["run"], check_install=True) == upgrade.UNFINISHED == 5
+    assert upgrade.UNFINISHED != cli.runner.HELD
     assert "Run sh install.sh to finish the update." in capsys.readouterr().err
 
 

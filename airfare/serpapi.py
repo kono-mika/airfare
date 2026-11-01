@@ -9,27 +9,22 @@ import asyncio
 import http.client
 import json
 import logging
+import math
 import urllib.error
 import urllib.request
 from datetime import datetime
 from urllib.parse import urlencode
 
-from . import money as cash
+from . import filters, money as cash
 from .results import PageResult
 from .extract import Flight, Leg, ParsedPage, top_picks
-from .urls import passengers
+from .urls import CITY_AIRPORTS, passengers
 
 log = logging.getLogger(__name__)
 
 API = "https://serpapi.com/search.json"
 ACCOUNT_API = "https://serpapi.com/account.json"
 CLASSES = {"economy": 1, "premiumeconomy": 2, "business": 3, "first": 4}
-# Skyscanner city codes → the airports Google Flights should search.
-CITY_AIRPORTS = {
-    "lond": "LHR,LGW,STN,LTN,LCY,SEN", "pari": "CDG,ORY,BVA", "nyca": "JFK,EWR,LGA", "rome": "FCO,CIA",
-    "mila": "MXP,LIN,BGY", "stoc": "ARN,BMA,NYO", "tyoa": "HND,NRT", "chia": "ORD,MDW", "wasa": "IAD,DCA,BWI",
-    "osaa": "KIX,ITM", "sela": "ICN,GMP", "mosc": "SVO,DME,VKO",
-}
 CONCURRENCY = 4
 
 
@@ -70,6 +65,15 @@ def params(page: dict, api_key: str, currency: str) -> dict:
         p["infants_on_lap"] = infants
     if page.get("return"):
         p["return_date"] = page["return"]
+    # A route's filters, as Google Flights' own (https://serpapi.com/google-flights-api). AirFare filters again on
+    # what comes back (filters.py), but only Google sees the return flights of a round trip.
+    chosen = filters.normal(page.get("filters"))
+    if "max_stops" in chosen:
+        p["stops"] = chosen["max_stops"] + 1         # 1: nonstop only, 2: 1 stop or fewer, 3: 2 stops or fewer
+    if "price_max" in chosen:
+        p["max_price"] = math.ceil(chosen["price_max"])
+    if "exclude_airports" in chosen:
+        p["exclude_conns"] = ",".join(sorted(filters.expand(chosen["exclude_airports"])))
     return p
 
 
@@ -121,7 +125,9 @@ def _flight(item: dict, currency: str, best: bool) -> Flight | None:
         tags.append("overnight layover")
     fid = "|".join(s.get("flight_number", "?") for s in segs) + "@" + leg.depart
     price = float(item["price"])
-    return Flight(id=fid, price=price, price_text=money(price, currency), legs=[leg], tags=tags)
+    connections = [str(l.get("id") or "?").upper() for l in item.get("layovers") or []]
+    connections += ["?"] * (leg.stops - len(connections))
+    return Flight(id=fid, price=price, price_text=money(price, currency), legs=[leg], tags=tags, connections=connections)
 
 
 def parse(body: dict, currency: str, round_trip: bool) -> ParsedPage:
@@ -157,7 +163,7 @@ def parse(body: dict, currency: str, round_trip: bool) -> ParsedPage:
     # Google quoted the prices in the currency the request asked for: say so, or the conversion would guess it
     # from the price text (and "kr" or "R" would be read as the wrong currency).
     return ParsedPage(ordered, picks, True, cash.sign(currency), len(ordered), " ".join(notes),
-                      currency_code=currency.upper())
+                      currency_code=currency.upper(), ranked=[f.id for f in ranked])
 
 
 def search(page: dict, api_key: str, currency: str) -> PageResult:
@@ -172,7 +178,8 @@ def search(page: dict, api_key: str, currency: str) -> PageResult:
         res.parsed = parse(body, currency, bool(page.get("return")))
         res.status = "ok" if res.parsed.flights else "no_results"
         if not res.parsed.flights:
-            res.note = "Google Flights found no flights for these dates"
+            res.note = ("Google Flights found no flights for these dates and this route's filters" if page.get("filters")
+                        else "Google Flights found no flights for these dates")
     except (SerpApiError, KeyError, ValueError) as e:
         res.status, res.note = "error", f"SerpApi: {e}"[:200]
     res.seconds = round((datetime.now() - started).total_seconds(), 1)

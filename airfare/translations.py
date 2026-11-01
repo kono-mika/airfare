@@ -1185,6 +1185,70 @@ _UPDATES = {
          "(Firefox: подпишите и установите новый .xpi)."),
 }
 
+# ----- filters per route --------------------------------------------------------------------------------------
+_FILTERS = {
+    "A route's filters hide fares everywhere, while the alert price limits decide when to alert about the fares left.":
+        ("Los filtros de una ruta ocultan tarifas en todas partes; los límites de precio de las alertas deciden cuándo "
+         "avisar de las tarifas que quedan.",
+         "Фильтры маршрута скрывают тарифы везде, а ценовые лимиты оповещений решают, когда сообщать об оставшихся тарифах."),
+    "Price range": ("Rango de precios", "Диапазон цен"),
+    "html:price-from": ("Desde", "От"),
+    "html:price-to": ("Hasta", "До"),
+    "Max transfers per direction": ("Máximo de escalas por sentido", "Макс. пересадок в одну сторону"),
+    "Any": ("Cualquiera", "Любое"),
+    "Direct only": ("Solo directos", "Только прямые"),
+    "Up to 1": ("Hasta 1", "До 1"),
+    "Up to 2": ("Hasta 2", "До 2"),
+    "Excluded transfer airports": ("Aeropuertos de escala excluidos", "Исключённые аэропорты пересадок"),
+    "none, or e.g. IST, LOND": ("ninguno, o p. ej. IST, LOND", "нет, или например IST, LOND"),
+    "the price range should be two numbers, with From no higher than To":
+        ("el rango de precios deben ser dos números, con Desde no mayor que Hasta",
+         "в диапазоне цен должны быть два числа, причём «От» не больше «До»"),
+    "The price range should be two numbers, with From no higher than To":
+        ("El rango de precios deben ser dos números, con Desde no mayor que Hasta",
+         "В диапазоне цен должны быть два числа, причём «От» не больше «До»"),
+    "excluded transfer airports should be 3-letter airport codes or city codes like LOND, separated by commas":
+        ("los aeropuertos de escala excluidos deben ser códigos de aeropuerto de 3 letras o códigos de ciudad como LOND, "
+         "separados por comas",
+         "исключённые аэропорты пересадок должны быть трёхбуквенными кодами аэропортов или кодами городов вроде LOND, "
+         "через запятую"),
+    "Excluded transfer airports should be 3-letter airport codes or city codes like LOND, separated by commas":
+        ("Los aeropuertos de escala excluidos deben ser códigos de aeropuerto de 3 letras o códigos de ciudad como LOND, "
+         "separados por comas",
+         "Исключённые аэропорты пересадок должны быть трёхбуквенными кодами аэропортов или кодами городов вроде LOND, "
+         "через запятую"),
+    "Saved. The filters changed on {routes}, so their alert references restart from the next check: the old reference may be a fare that's now hidden.":
+        ("Guardado. Los filtros de {routes} han cambiado, así que sus referencias de alerta se reinician en la próxima "
+         "comprobación: la referencia anterior puede ser una tarifa que ahora está oculta.",
+         "Сохранено. Фильтры маршрута {routes} изменились, поэтому его опорные цены оповещений начнутся заново со "
+         "следующей проверки: прежняя опорная цена может быть тарифом, который теперь скрыт."),
+    "{n} fare hidden by this route's filters|{n} fares hidden by this route's filters":
+        ("{n} tarifa oculta por los filtros de esta ruta|{n} tarifas ocultas por los filtros de esta ruta",
+         "{n} тариф скрыт фильтрами этого маршрута|{n} тарифа скрыто фильтрами этого маршрута|"
+         "{n} тарифов скрыто фильтрами этого маршрута"),
+    "price: {n}": ("precio: {n}", "цена: {n}"),
+    "transfers: {n}": ("escalas: {n}", "пересадки: {n}"),
+    "airports: {n}": ("aeropuertos: {n}", "аэропорты: {n}"),
+    "connections unknown": ("escalas desconocidas", "пересадки неизвестны"),
+    "price unknown": ("precio desconocido", "цена неизвестна"),
+    "No fares match this route's filters.": ("Ninguna tarifa cumple los filtros de esta ruta.",
+                                             "Ни один тариф не подходит под фильтры этого маршрута."),
+    "Google Flights found no flights for these dates and this route's filters":
+        ("Google Flights no ha encontrado vuelos para estas fechas y los filtros de esta ruta",
+         "Google Flights не нашёл рейсов на эти даты с фильтрами этого маршрута"),
+    "Run sh install.sh in the AirFare folder to finish the update":
+        ("Ejecuta sh install.sh en la carpeta de AirFare para terminar la actualización",
+         "Запустите sh install.sh в папке AirFare, чтобы завершить обновление"),
+    "from {price}": ("desde {price}", "от {price}"),
+    "up to {price}": ("hasta {price}", "до {price}"),
+    "direct only": ("solo directos", "только прямые"),
+    "up to {n} transfer|up to {n} transfers": ("hasta {n} escala|hasta {n} escalas",
+                                               "до {n} пересадки|до {n} пересадок|до {n} пересадок"),
+    "not via {airports}": ("sin pasar por {airports}", "не через {airports}"),
+    "taken under other filters: {filters}": ("registrado con otros filtros: {filters}", "записано с другими фильтрами: {filters}"),
+    "taken without filters": ("registrado sin filtros", "записано без фильтров"),
+}
+
 T: dict[str, dict] = {k: {"es": es, "ru": ru} for k, (es, ru) in
                       {**_PAIRS, **_MESSAGES, **_MORE, **_HTML, **_V14, **_PUBLIC, **_FIREFOX, **_REVIEW,
-                       **_LIMITS, **_UPDATES}.items()}
+                       **_LIMITS, **_UPDATES, **_FILTERS}.items()}
