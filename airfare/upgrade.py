@@ -28,10 +28,12 @@ from datetime import datetime
 from pathlib import Path
 
 from . import __version__, platform
-from .config import DATA_DIR, LOGS_DIR, PROJECT_DIR, WEBUI_PORT, read_json, write_json
+from .config import CONFIG_FILE, DATA_DIR, LOGS_DIR, PROJECT_DIR, WEBUI_PORT, read_json, write_json
+from .i18n import tr
 
 log = logging.getLogger("airfare.upgrade")
 
+UNFINISHED = 5                                 # python -m airfare's exit code when the setup doesn't match the code
 RECORD_NAME = "airfare-install.json"           # in .venv: it goes when the environment goes
 MANIFEST_NAME = "MANIFEST.txt"                 # every file of the release zip (tools/make_portable.py)
 # The folders a release replaces whole: a file in them that the release doesn't list is left over from an
@@ -77,6 +79,17 @@ def mismatch(root: Path = PROJECT_DIR, prefix: str | None = None) -> str | None:
             f"{'AirFare ' + rec['app'] if rec.get('app') else 'an earlier version'}. {how} to finish the update.")
 
 
+def tell_desktop() -> None:
+    """macOS and Linux: whatever started AirFare (the login entry, the app menu) may have no terminal to show why it
+    stopped, so a notification says it too. In the language picked in Settings; nothing here migrates or loads
+    the settings, since this runs before the update is finished."""
+    if platform.WINDOWS:
+        return
+    stored = read_json(CONFIG_FILE, {})
+    lang = stored.get("language") if isinstance(stored, dict) else None
+    platform.notify("AirFare", [tr("Run sh install.sh in the AirFare folder to finish the update", lang)])
+
+
 def note(text: str) -> None:
     """One line in AirFare's log, for a process that has no logging set up (and maybe no console)."""
     try:
@@ -103,6 +116,9 @@ def remove_leftovers(root: Path = PROJECT_DIR, data: Path = DATA_DIR) -> list[st
     if "airfare/__init__.py" not in listed:
         return []
     missing = sorted(n for n in listed if not (root / n).is_file())
+    # Windows and macOS folders ignore capitals: a file the release only renamed that way is still that file.
+    same_name = str.casefold if platform.WINDOWS or platform.MACOS else str
+    listed = {same_name(n) for n in listed}
     if missing:
         log.warning("MANIFEST.txt lists %d file(s) that aren't here (%s ...): nothing deleted", len(missing), missing[0])
         return []
@@ -121,7 +137,7 @@ def remove_leftovers(root: Path = PROJECT_DIR, data: Path = DATA_DIR) -> list[st
             for name in files:
                 path = Path(here) / name
                 rel = path.relative_to(root).as_posix()
-                if rel in listed or protected(path):
+                if same_name(rel) in listed or protected(path):
                     continue
                 try:
                     path.unlink()

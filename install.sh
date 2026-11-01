@@ -91,6 +91,8 @@ echo "Installing packages. This takes a few minutes (the Claude Agent SDK is abo
 step "Your data"
 # Backed up to data/backups first, then brought up to this version's format; on any problem it is put back.
 "$venv_py" -m airfare migrate || fail "Updating the data folder failed. $untouched"
+# From here on the data has been brought up to this version: "untouched" no longer holds.
+untouched="Your data is kept and backed up in data/backups. Fix the problem above and run  sh install.sh  again, or go back by unzipping the previous release over this folder."
 
 step "App entry and start at login"
 "$venv_py" -c '

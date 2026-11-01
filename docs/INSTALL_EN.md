@@ -81,6 +81,7 @@ Each date combination uses one search per check. Under **When to check**, AirFar
 
 1. In **Currency**, pick Euro, Pound, Dollar or Ruble, or another currency under **Other**. Every price is compared and shown in it; prices a site shows in another currency are converted with the day's exchange rate.
 2. In **Flights to track**, enter airport or city codes (LHR, BCN, LOND), a date or a range of dates, the adults and, if children travel, their ages (for example `4, 9`).
+   Under **Cabin**, each route can also have filters: a **Price range**, **Max transfers per direction** and **Excluded transfer airports** (IATA codes separated by commas; city codes like LOND stand for their airports). Filters hide fares everywhere, while the alert price limits decide when to alert about the fares left. Changing a route's filters keeps its history and restarts its alert references from the next check.
 3. In **Price alerts**, set a threshold for each kind: **Cheapest**, **Fastest** and **Best value**. Each alerts when its price drops by your percentage, or falls to your price limit. You can also ignore very long trips or self-transfers.
 4. Press **Save**, then **Test links**.
 

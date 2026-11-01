@@ -10,7 +10,8 @@ to your target. Otherwise it stays silent.
   limit, plus filters for very long trips and self-transfers.
 - **Analyst, optional:** Claude, ChatGPT or DeepSeek reads every check, picks the best-value flight and
   writes a short take. With *No analyst*, AirFare's own rules alert on the cheapest and fastest fares.
-- **Routes:** airport or city codes, exact dates or ranges, adults, children by age, cabin.
+- **Routes:** airport or city codes, exact dates or ranges, adults, children by age, cabin, and filters for
+  price, transfers and transfer airports.
 - **Currencies:** any of the 30-odd the European Central Bank publishes, plus the ruble; every price is
   converted and compared in yours.
 - **Pages:** a dashboard with one tab per route and a price trend, a price history with CSV export,
@@ -84,7 +85,7 @@ Lowest-price lookups can use any of the analysts; both ChatGPT options search th
 The dashboard has one tab per route. A route that's no longer in the latest check (you turned it around,
 changed its airports, travellers or cabin, or removed it) keeps its last check on its own tab, marked as
 earlier, until you remove it. Changing a route's direction, airports, trip type, travellers or cabin makes it
-a new route with its own alert references and history; changing only its dates doesn't.
+a new route with its own alert references and history; changing only its dates or filters doesn't.
 
 **Clean up** (the fourth tab) shows what AirFare has kept and removes parts of it; every button says how
 much it will delete before you press it:
@@ -108,7 +109,38 @@ as the ruble). Rates from open.er-api.com are credited with a link to ExchangeRa
 shown, as its terms require. The rates are kept in `data/rates.json`, so a check without internet uses the
 last ones. The price document lists the rates, and the analyst is told to convert any price still in another
 currency the same way. Price-history lookups report the source's own price plus its conversion.
-Changing the currency converts your alert price limits and earlier references at today's rate.
+Changing the currency converts your alert price limits, routes' price ranges and earlier references at today's
+rate.
+
+## Routes
+
+Each route card has three optional filters under **Cabin**:
+
+- **Price range:** *From* and *To*, either or both, in your currency.
+- **Max transfers per direction:** Any, Direct only, Up to 1 or Up to 2. A trip counts by its direction with the
+  most stops.
+- **Excluded transfer airports:** IATA codes separated by commas. City codes (`LOND`, `LON`) stand for their airports.
+
+Filters hide fares. A fare that doesn't match is left out everywhere: the dashboard, the three alert kinds, the
+price document and the analyst, the best-value pick, new price-history records and the CSV export. The dashboard's
+route header and the price document say how many were hidden and why (*5 fares hidden by this route's filters*),
+per reason: price, transfers, airports. A route without filters works as it always did.
+
+Some fares can't be judged, so they stay, marked, and don't count for alerts:
+
+- *connections unknown*: the route excludes airports, but this fare's connections can't be read. Prices that
+  only came as page text can't be filtered at all; the price document says so.
+- *price unknown*: the route has a price range, but this fare couldn't be converted to your currency.
+
+Google Flights also gets the filters as its own search options (`stops`, `max_price`, `exclude_conns`), which also
+cover the return flights it doesn't list, and AirFare filters again on what comes back. Skyscanner and Aviasales
+links stay as they are, except that Direct only also makes Skyscanner list direct flights first. **Prefer direct
+flights** keeps its meaning: Skyscanner lists direct flights first, and nothing is hidden. **Test links** checks
+that the pages work, so it shows what they offer before AirFare's own filtering.
+
+Filters aren't part of what makes a route the same search: changing them keeps its id, tab, price history and
+lookups. They do restart its alert references from the next check, because the old reference may be a fare that's
+now hidden. Settings says so when saving.
 
 ## Price alerts
 
@@ -125,6 +157,10 @@ alert, or the first price seen), or at or under your optional price limit. A kin
 when that kind alerts. Alerts can also ignore trips where one direction takes longer than a set number
 of hours, and self-transfer trips. AirFare applies these rules itself, so cheapest and fastest still
 alert when the analyst can't be reached.
+
+A route's filters (see *Routes*) come first: they hide fares, while the price limits here decide when to alert
+about the fares left. Alerts only ever see matching fares, and the best-value pick has to be a captured fare that
+matches.
 
 ## Install
 
@@ -256,12 +292,14 @@ copies it to `data/backups/<old version>-<date>-<time>/`.
    data stays in the old one.
 5. Double-click **AirFare.exe**. It sees the new version, backs up the data and finishes the update in its
    setup window (packages, data, shortcuts, the background checker), then opens Settings. If anything fails,
-   the data is untouched and the window says what to do.
+   the window says what to do: your data is either untouched or, once it has been updated, kept and backed up in
+   `data\backups`.
 6. If Settings says the browser runs an older extension, reload it there (Firefox: sign and install the new
    `.xpi`, see *Firefox* above).
 
 **macOS and Linux:** the same steps, then run `sh install.sh` in the folder instead of step 5. Until you
-do, `python -m airfare` says *Run sh install.sh to finish the update*.
+do, `python -m airfare` says *Run sh install.sh to finish the update*, in the terminal and in a notification, and
+stops with exit code 5.
 
 **Unzipped into a new folder anyway?** Close both copies (tray icon → Quit AirFare), move the `data` folder
 from the old folder into the new one, then start the new copy.
@@ -337,7 +375,8 @@ permission, which Firefox match patterns can't hold) and the `browser.*` namespa
 The dashboard has a **Price history** tab, also opened from Settings. It lists every price AirFare has
 recorded: the cheapest flight from each source for each date pair, at every check. Filter by route,
 dates and source to see the all-time cheapest price for those conditions, with a trend chart, and export
-the records shown as a CSV file (**Export CSV**, for Excel or any spreadsheet). When opened from Settings,
+the records shown as a CSV file (**Export CSV**, for Excel or any spreadsheet, with a `filters` column). A record
+taken under other filters than the route's current ones is marked as such. When opened from Settings,
 you can delete single records, the records shown, or a whole route's history. Deleting history doesn't
 change LOW PRICE alerts.
 
@@ -355,7 +394,8 @@ published, so expect that answer often.
 
 ## Files (`data/`)
 
-- `config.json`: routes, sources and settings, written by the form. It includes your SerpApi, Anthropic,
+- `config.json`: routes (with their optional filters `price_min`, `price_max`, `max_stops`, `exclude_airports`),
+  sources and settings, written by the form. It includes your SerpApi, Anthropic,
   OpenAI and DeepSeek keys, encrypted with Windows DPAPI (`dpapi:…`) so that only your Windows account on
   this PC can read them; keys saved by an older version in plain text are encrypted at the next save. On
   macOS and Linux the keys themselves are in your keychain and `config.json` holds only a reference
@@ -364,11 +404,12 @@ published, so expect that answer often.
 - `state.json`: the Claude session ID that every run resumes, when the extension last reported in, and the
   last update check.
 - `history.json`: the all-time low and the last best-value pick per route. Each run sends these to
-  Claude, so comparisons survive context compaction.
+  Claude, so comparisons survive context compaction. A route with filters also keeps the ones its alert references
+  were set under (`filters`).
 - `reports/*-prices.md`: the price document sent to Claude. `reports/*-analysis.md` and
   `reports/latest.html` hold Claude's answer.
-- `price_history.json`: every recorded price, for the Price history tab. `price_research.json` holds
-  the lowest-price lookups.
+- `price_history.json`: every recorded price, for the Price history tab. A record taken under filters carries
+  them (`filters`); older records have none. `price_research.json` holds the lowest-price lookups.
 - `rates.json`: the latest exchange rates (public figures), so a check without internet still converts.
 - `dashboard.json`: each route's last dashboard section in every language, so earlier routes keep their tab.
 - `openai/`, `deepseek/`: the API analysts' conversations. `chatgpt/` is the empty folder Codex works in.

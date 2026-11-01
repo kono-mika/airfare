@@ -73,7 +73,8 @@ DEFAULT_CONFIG = {
 # The fields of a route that Settings writes. save_config keeps any other field a route has on disk (written by
 # a newer or older AirFare), and any top-level key not in DEFAULT_CONFIG, so settings survive going either way.
 ROUTE_FIELDS = ("id", "name", "enabled", "origin", "destination", "trip", "depart_from", "depart_to", "return_from",
-                "return_to", "adults", "children", "cabin", "direct_only", "manual_pages")
+                "return_to", "adults", "children", "cabin", "direct_only", "manual_pages",
+                "price_min", "price_max", "max_stops", "exclude_airports")
 # Keys this version reads only to convert them (load_config, migrate.py): saving never brings them back.
 RETIRED_KEYS = ("min_drop_percent",)
 

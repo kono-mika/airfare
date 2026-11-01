@@ -30,6 +30,8 @@ class Flight:
     score: float | None = None
     self_transfer: bool = False
     orig_text: str = ""          # the price as the site showed it, when AirFare converted it
+    connections: list[str] = field(default_factory=list)   # the airports where it changes planes, "?" for one not read
+    marks: list[str] = field(default_factory=list)         # what a route's filters couldn't check (filters.py): no alerts
 
     @property
     def minutes(self) -> int:
@@ -38,6 +40,11 @@ class Flight:
     @property
     def max_stops(self) -> int:
         return max((leg.stops for leg in self.legs), default=0)
+
+    @property
+    def connections_unknown(self) -> bool:
+        """Whether some of its stops have no airport to read."""
+        return not self.legs or "?" in self.connections or len(self.connections) < sum(leg.stops for leg in self.legs)
 
     @property
     def airlines(self) -> str:
@@ -62,6 +69,8 @@ class ParsedPage:
     note: str = ""                           # extra context for the report, e.g. Google's price insight
     currency_code: str | None = None         # ISO code, when the source says which currency it used
     comparable: bool = True                  # False when the prices couldn't be converted to AirFare's currency
+    ranked: list[str] = field(default_factory=list)   # the source's own best-first order of every flight, if it has one
+    hidden: dict[str, int] = field(default_factory=dict)   # fares a route's filters hid, per reason (filters.py)
 
 
 def top_picks(flights: list[Flight], ranked: list[Flight] | None = None, n: int = TOP_N) -> dict[str, list[str]]:
@@ -73,6 +82,24 @@ def top_picks(flights: list[Flight], ranked: list[Flight] | None = None, n: int 
         "cheapest": [f.id for f in sorted(flights, key=lambda f: f.price)[:n]],
         "fastest": [f.id for f in sorted(flights, key=lambda f: (f.minutes, f.price))[:n]],
     }
+
+
+def transfer_airports(hops: list[tuple], stops: int) -> list[str]:
+    """Where one direction's flights (origin, destination) connect: the airport landed at and, when the next flight
+    leaves from another one, that one too. A stop with nothing to read counts as "?"."""
+    out = []
+    for (_, landed), (leaves, _) in zip(hops, hops[1:]):
+        out += [str(code).upper() if code else "?" for code in dict.fromkeys((landed, leaves))]
+    return out + ["?"] * (stops - max(len(hops) - 1, 0))
+
+
+def _sky_code(place) -> str | None:
+    return (place or {}).get("displayCode") or (place or {}).get("flightPlaceId")
+
+
+def _leg_connections(raw: dict) -> list[str]:
+    hops = [(_sky_code(s.get("origin")), _sky_code(s.get("destination"))) for s in raw.get("segments") or [] if isinstance(s, dict)]
+    return transfer_airports(hops, int(raw.get("stopCount") or 0))
 
 
 def _leg(raw: dict) -> Leg:
@@ -100,6 +127,7 @@ def _flight(raw: dict) -> Flight | None:
         tags=list(raw.get("tags") or []),
         score=raw.get("score"),
         self_transfer=bool(raw.get("isSelfTransfer")),
+        connections=[c for leg in raw.get("legs") or [] for c in _leg_connections(leg)],
     )
 
 
@@ -189,7 +217,7 @@ def _avia_flight(ticket: dict, legs: list, airlines: dict) -> tuple[Flight, str 
         return None
     offer = min(offers, key=lambda p: p["price"]["value"])
     terms = offer.get("flight_terms") or {}
-    out, tags, self_transfer = [], [], False
+    out, tags, self_transfer, connections = [], [], False, []
     for seg in ticket["segments"]:
         idx = [i for i in (seg or {}).get("flights") or [] if isinstance(i, int) and 0 <= i < len(legs)]
         hops = [legs[i] for i in idx]
@@ -207,6 +235,7 @@ def _avia_flight(ticket: dict, legs: list, airlines: dict) -> tuple[Flight, str 
                        depart=_avia_time(hops[0].get("local_departure_date_time")),
                        arrive=_avia_time(hops[-1].get("local_arrival_date_time")),
                        minutes=max(round(seconds / 60), 0), stops=len(hops) - 1, airlines=" + ".join(names)))
+        connections += transfer_airports([(h.get("origin"), h.get("destination")) for h in hops], len(hops) - 1)
         for t in seg.get("transfers") or []:
             if not isinstance(t, dict):
                 continue
@@ -218,7 +247,7 @@ def _avia_flight(ticket: dict, legs: list, airlines: dict) -> tuple[Flight, str 
     value = float(offer["price"]["value"])
     code = str(offer["price"].get("currency_code") or "").upper() or None
     flight = Flight(id=str(ticket.get("id")), price=value, price_text=money.fmt(value, code or "RUB"), legs=out,
-                    tags=tags, score=ticket.get("score"), self_transfer=self_transfer)
+                    tags=tags, score=ticket.get("score"), self_transfer=self_transfer, connections=connections)
     return flight, code
 
 
@@ -259,7 +288,7 @@ def parse_aviasales(payloads: list) -> ParsedPage | None:
     ordered = sorted(flights.values(), key=lambda f: f.price)
     best = [flights[i] for i in dict.fromkeys(ranked) if i in flights]
     return ParsedPage(ordered, top_picks(ordered, best or None), complete, money.sign(currency or "RUB"),
-                      max(total, len(flights)), currency_code=currency or "RUB")
+                      max(total, len(flights)), currency_code=currency or "RUB", ranked=[f.id for f in best])
 
 
 # ----- one currency for every page --------------------------------------------------------

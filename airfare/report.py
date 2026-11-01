@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from urllib.parse import urlparse
 
-from . import limits, money
+from . import filters, limits, money
 from .results import PageResult
 from .extract import Flight, ParsedPage, convert_page, parse_aviasales, parse_payloads
 
@@ -121,8 +121,9 @@ def alert_rules(cfg: dict) -> dict:
 
 
 def usable(f: Flight, rules: dict) -> bool:
-    """Whether a flight may count for alerts: no direction longer than the limit, no self-transfer if asked."""
-    if rules.get("no_self_transfer") and f.self_transfer:
+    """Whether a flight may count for alerts: no direction longer than the limit, no self-transfer if asked, and
+    nothing a route's filters couldn't check."""
+    if f.marks or (rules.get("no_self_transfer") and f.self_transfer):
         return False
     limit = rules.get("max_hours")
     return not (limit and any(leg.minutes > limit * 60 for leg in f.legs))
@@ -200,6 +201,10 @@ def build_document(pages: list[PageData], when: datetime, left_out: int, currenc
 
     for rid, rpages in by_route.items():
         lines += ["", f"## {rpages[0].page['route_name']} (route `{rid}`)"]
+        if rpages[0].page.get("filters"):
+            lines += ["", f"This route's filters: {filters.describe(rpages[0].page['filters'])}. Only fares that match "
+                          "are listed below. A fare marked \"connections unknown\" or \"price unknown\" couldn't be "
+                          "checked against them, and doesn't count for alerts."]
         for pd in sorted(rpages, key=lambda p: (p.page.get("depart") or "", p.page.get("return") or "", p.result.source)):
             lines += _page_section(pd)
     return "\n".join(lines) + "\n"
@@ -225,6 +230,8 @@ def _page_section(pd: PageData) -> list[str]:
     out = ["", f"### {title} — {state}", f"Link: {page['url']}"]
     if parsed and parsed.note:
         out.append(parsed.note)
+    if parsed and parsed.hidden:
+        out.append(filters.hidden_line(parsed.hidden) + ".")
 
     if parsed and parsed.flights:
         by_id = {f.id: f for f in parsed.flights}
@@ -238,16 +245,19 @@ def _page_section(pd: PageData) -> list[str]:
                     "| # | Price | Outbound | " + ("Return | " if two_way else "") + "Airlines | Travel time | Notes |",
                     "|---|---|---|" + ("---|" if two_way else "") + "---|---|---|"]
             for i, f in enumerate(rows, 1):
-                notes = [t.replace("_", " ") for t in f.tags]
+                notes = f.marks + [t.replace("_", " ") for t in f.tags]
                 if f.self_transfer:
                     notes.append("self-transfer")
                 if f.orig_text:
                     notes.append(f"site price {f.orig_text}")
                 out.append(f"| {i} | {f.price_text} | {_leg_cell(f, 0)} | " + (f"{_leg_cell(f, 1)} | " if two_way else "")
                            + f"{f.airlines} | {_dur(f.minutes)} | {', '.join(notes)} |")
-    elif res.text.strip():
+    elif res.text.strip() and not (parsed and parsed.hidden):     # the page text would show the fares just hidden
         out += ["", "No structured results were captured; this is the visible page text:", "", "```",
                 res.text.strip()[:6000], "```"]
+        if page.get("filters"):
+            out += ["", f"These fares are {filters.CONNECTIONS_UNKNOWN}: this route's filters couldn't be applied to "
+                        "page text, so don't take them as matching."]
     return out
 
 

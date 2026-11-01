@@ -123,6 +123,9 @@ try {
     # Backed up to data\backups first, then brought up to this version's format; on any problem it is put back.
     & $venvPy -m airfare migrate
     if ($LASTEXITCODE -ne 0) { Fail "Updating the data folder failed. $untouched" }
+    # From here on the data has been brought up to this version: "untouched" no longer holds.
+    $untouched = "Your data is kept and backed up in data\backups. Fix the problem above and double-click AirFare.exe " +
+                 "again, or go back by unzipping the previous release over this folder."
 
     Step "Launcher and shortcuts"
     $launcher = Join-Path $root "AirFare.exe"
