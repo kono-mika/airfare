@@ -6,7 +6,13 @@ os.environ["AIRFARE_DATA"] = tempfile.mkdtemp(prefix="airfare-test-data-")
 
 import pytest  # noqa: E402
 
-from airfare import links, money, notify, secrets  # noqa: E402
+from airfare import links, money, notify, secrets, upgrade  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def not_started_by_an_installer(monkeypatch):
+    """upgrade.finish() marks its process as the installer's for the checker it starts; a test's stays unmarked."""
+    monkeypatch.delenv(upgrade.INSTALLER_ENV, raising=False)
 
 
 @pytest.fixture(autouse=True)

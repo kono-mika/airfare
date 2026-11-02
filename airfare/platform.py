@@ -189,6 +189,12 @@ class FileLock:
 
 # ----- notifications (macOS and Linux; Windows toasts are in notify.py) ------------------------------------
 
+def message_box(title: str, text: str) -> None:
+    """Windows' own message box, for what must reach the user when a toast couldn't be shown."""
+    import ctypes
+    ctypes.windll.user32.MessageBoxW(None, text, title, 0x40)     # MB_ICONINFORMATION
+
+
 def _plain(text: str, limit: int = 300) -> str:
     return re.sub(r"[\x00-\x1f\x7f]+", " ", str(text)).strip()[:limit]
 

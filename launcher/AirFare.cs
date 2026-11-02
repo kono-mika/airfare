@@ -1,8 +1,10 @@
 // AirFare.exe: the icon people double-click. On a PC where AirFare isn't set up yet it offers to run the
-// installer; after that it opens AirFare Settings. When a new release was unzipped over the folder (the code's
+// installer; after that it opens AirFare Settings. When a new release was extracted over the folder (the code's
 // version differs from the one its Python environment was set up for), it first finishes the update with the
 // installer in its window: backup and migration of the data, packages, shortcuts. The Startup shortcut runs
 // "AirFare.exe --service", so Windows lists the startup entry as AirFare with this icon instead of as Python.
+// A copy unzipped inside the AirFare folder stops before anything happens, and so does any start while an install
+// script holds its lock (.venv\airfare-install.lock, see airfare\upgrade.py).
 // It also opens airfare: links (see airfare\links.py), which notifications and pages opened from disk use to
 // reach the live pages.
 //
@@ -27,6 +29,8 @@ using System.Windows.Forms;
 static class Launcher
 {
     const string Title = "AirFare";
+    const int BeingUpdatedCode = 6;      // as python -m airfare (airfare\upgrade.py)
+    const int UnzippedInsideCode = 7;
     static string lang = "en";
 
     // The language picked in AirFare Settings; before setup, Windows' display language.
@@ -94,6 +98,57 @@ static class Launcher
         }
     }
 
+    static bool IsAirFareFolder(string folder)
+    {
+        return File.Exists(Path.Combine(folder, @"airfare\__init__.py")) && Directory.Exists(Path.Combine(folder, "data"));
+    }
+
+    // The AirFare folder this copy sits in, when it was unzipped inside one; null otherwise.
+    static string OuterFolder(string root)
+    {
+        try
+        {
+            DirectoryInfo parent = root.Length > 3 ? Directory.GetParent(root) : null;
+            if (parent != null && IsAirFareFolder(parent.FullName))
+                return parent.FullName;
+        }
+        catch (Exception) { }
+        return null;
+    }
+
+    static string UnzippedInside(string root, string outer)
+    {
+        DirectoryInfo above = Directory.GetParent(outer);
+        string target = above != null ? above.FullName : outer;
+        string name = Path.GetFileName(outer);
+        string text = T("This copy was unzipped inside your AirFare folder. Delete this inner folder and extract the zip into " + target + " instead.",
+                        "Esta copia se descomprimió dentro de tu carpeta de AirFare. Borra esta carpeta interior y extrae el zip en " + target + ".",
+                        "Эта копия распакована внутри вашей папки AirFare. Удалите эту внутреннюю папку и извлеките архив в " + target + ".");
+        if (!string.Equals(name, "AirFare", StringComparison.OrdinalIgnoreCase))
+            text += "\n\n" + T("Your AirFare folder is called " + name + ". The zip makes a folder called AirFare, so rename yours to AirFare first.",
+                               "Tu carpeta de AirFare se llama " + name + ". El zip crea una carpeta llamada AirFare, así que antes cambia el nombre de la tuya a AirFare.",
+                               "Ваша папка AirFare называется " + name + ". Архив создаёт папку с именем AirFare, поэтому сначала переименуйте свою в AirFare.");
+        if (Directory.Exists(Path.Combine(root, "data")))
+            text += "\n\n" + T("This inner folder has a data folder of its own. If it holds settings or prices you want to keep, move it somewhere safe first.",
+                               "Esta carpeta interior tiene su propia carpeta data. Si guarda ajustes o precios que quieras conservar, muévela antes a un lugar seguro.",
+                               "Во внутренней папке есть своя папка data. Если в ней есть нужные настройки или цены, сначала перенесите её в надёжное место.");
+        return text + "\n\n" + root;
+    }
+
+    // Whether an install script holds its lock: it opens the file for itself alone, for as long as it runs.
+    static bool BeingUpdated(string root)
+    {
+        try
+        {
+            using (new FileStream(Path.Combine(root, @".venv\airfare-install.lock"), FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite))
+                return false;
+        }
+        catch (FileNotFoundException) { return false; }
+        catch (DirectoryNotFoundException) { return false; }
+        catch (IOException) { return true; }
+        catch (Exception) { return false; }
+    }
+
     [STAThread]
     static int Main(string[] args)
     {
@@ -114,6 +169,25 @@ static class Launcher
                 mode = mode.Substring(0, cut);
             if (mode != "dashboard" && mode != "history" && mode != "settings" && mode != "start")
                 return 2;
+        }
+
+        // Before anything else, and for every way in: the Startup entry only stops, it never shows a window.
+        string outer = OuterFolder(root);
+        if (outer != null)
+        {
+            lang = Language(outer);
+            if (mode != "service")
+                MessageBox.Show(UnzippedInside(root, outer), Title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return UnzippedInsideCode;
+        }
+        if (BeingUpdated(root))
+        {
+            if (mode != "service")
+                MessageBox.Show(T("AirFare is being updated, try again in a few minutes",
+                                  "AirFare se está actualizando; inténtalo de nuevo en unos minutos",
+                                  "AirFare обновляется, попробуйте ещё раз через несколько минут"),
+                                Title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return BeingUpdatedCode;
         }
 
         if (mode == "install")

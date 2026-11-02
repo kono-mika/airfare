@@ -125,7 +125,7 @@ def test_a_key_saves_on_its_own_without_any_route(monkeypatch, tmp_path):
 def test_alert_settings_are_checked_and_follow_the_currency(monkeypatch):
     monkeypatch.setattr(webui, "load_config", lambda: {**config.DEFAULT_CONFIG, "currency": "EUR",
                                                        "alerts": {"fastest": {"on": True, "drop": 2, "max": 140}}})
-    monkeypatch.setattr(webui.money, "rates", lambda: {"rates": {"EUR": 1.0, "RUB": 100.0}})
+    monkeypatch.setattr(webui.money, "rates", lambda refresh=True: {"rates": {"EUR": 1.0, "RUB": 100.0}})
     alerts = {"cheapest": {"on": False, "drop": 10, "max": None}, "fastest": {"on": True, "drop": 2, "max": 140},
               "best": {"on": True, "drop": "", "max": ""}}
     cfg = webui.clean_config({"sources": ["extension"], "currency": "RUB", "alerts": alerts, "alert_max_hours": "20",

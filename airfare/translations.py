@@ -1167,17 +1167,27 @@ _UPDATES = {
                                                 "Закройте AirFare: значок в трее → «Выйти из AirFare»."),
     "Download AirFare.zip from the release page.": ("Descarga AirFare.zip desde la página de la versión.",
                                                     "Скачайте AirFare.zip со страницы выпуска."),
-    "Unzip it into this same folder, {folder}, and choose to replace the files. Never into a new folder: your data stays in this one.":
-        ("Descomprímelo en esta misma carpeta, {folder}, y elige reemplazar los archivos. Nunca en una carpeta "
-         "nueva: tus datos se quedan en esta.",
-         "Распакуйте его в эту же папку, {folder}, и выберите замену файлов. Не в новую папку: ваши данные "
-         "остаются в этой."),
+    "Extract the zip into the folder that contains your AirFare folder: Extract All, choose {parent} and replace the files. Not into {folder}: that makes a second AirFare folder inside it.":
+        ("Extrae el zip en la carpeta que contiene tu carpeta de AirFare: Extraer todo, elige {parent} y reemplaza los "
+         "archivos. No en {folder}: eso crea otra carpeta AirFare dentro.",
+         "Извлеките архив в папку, в которой лежит ваша папка AirFare: «Извлечь все», выберите {parent} и замените "
+         "файлы. Не в {folder}: так внутри появится вторая папка AirFare."),
+    "Don't double-click the zip: on a Mac that makes a new folder, AirFare 2. In a terminal, in the folder with the download, run: {command}":
+        ("No hagas doble clic en el zip: en un Mac eso crea una carpeta nueva, AirFare 2. En un terminal, en la carpeta "
+         "de la descarga, ejecuta: {command}",
+         "Не открывайте архив двойным щелчком: на Mac так появится новая папка AirFare 2. В терминале, в папке со "
+         "скачанным файлом, выполните: {command}"),
+    "Your AirFare folder is called {name}, but the zip makes a folder called AirFare. Rename yours to AirFare first, or the update ends up in a new folder.":
+        ("Tu carpeta de AirFare se llama {name}, pero el zip crea una carpeta llamada AirFare. Antes cambia el nombre de "
+         "la tuya a AirFare, o la actualización acabará en una carpeta nueva.",
+         "Ваша папка AirFare называется {name}, а архив создаёт папку с именем AirFare. Сначала переименуйте свою в "
+         "AirFare, иначе обновление окажется в новой папке."),
     "Double-click AirFare.exe. It backs up your data and finishes the update.":
         ("Haz doble clic en AirFare.exe. Hace una copia de tus datos y termina la actualización.",
          "Дважды щёлкните AirFare.exe. Он сделает резервную копию данных и завершит обновление."),
-    "Run sh install.sh in this folder. It backs up your data and finishes the update.":
-        ("Ejecuta sh install.sh en esta carpeta. Hace una copia de tus datos y termina la actualización.",
-         "Запустите sh install.sh в этой папке. Он сделает резервную копию данных и завершит обновление."),
+    "Then run sh install.sh in your AirFare folder. It backs up your data and finishes the update.":
+        ("Después ejecuta sh install.sh en tu carpeta de AirFare. Hace una copia de tus datos y termina la actualización.",
+         "Затем запустите sh install.sh в вашей папке AirFare. Он сделает резервную копию данных и завершит обновление."),
     "If Settings then says the browser runs an older extension, reload it (Firefox: sign and install the new .xpi).":
         ("Si después Ajustes dice que el navegador usa una extensión anterior, recárgala (Firefox: firma e instala "
          "el nuevo .xpi).",
@@ -1239,6 +1249,17 @@ _FILTERS = {
     "Run sh install.sh in the AirFare folder to finish the update":
         ("Ejecuta sh install.sh en la carpeta de AirFare para terminar la actualización",
          "Запустите sh install.sh в папке AirFare, чтобы завершить обновление"),
+    "Run AirFare.exe --install in the AirFare folder to finish the update":
+        ("Ejecuta AirFare.exe --install en la carpeta de AirFare para terminar la actualización",
+         "Запустите AirFare.exe --install в папке AirFare, чтобы завершить обновление"),
+    "AirFare is being updated, try again in a few minutes":
+        ("AirFare se está actualizando; inténtalo de nuevo en unos minutos",
+         "AirFare обновляется, попробуйте ещё раз через несколько минут"),
+    "the price range is too high for this currency":
+        ("el rango de precios es demasiado alto para esta moneda", "диапазон цен слишком высок для этой валюты"),
+    "The price range is too high for this currency":
+        ("El rango de precios es demasiado alto para esta moneda", "Диапазон цен слишком высок для этой валюты"),
+    "{what} is too high for {currency}": ("{what} es demasiado alto para {currency}", "{what}: слишком много для {currency}"),
     "from {price}": ("desde {price}", "от {price}"),
     "up to {price}": ("hasta {price}", "до {price}"),
     "direct only": ("solo directos", "только прямые"),

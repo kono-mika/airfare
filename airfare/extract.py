@@ -57,6 +57,8 @@ class Flight:
 
 
 TOP_N = 3     # flights kept per category
+MAX_STOPS = 9             # the most stops a feed may claim for one direction
+MAX_CONNECTIONS = 40      # the most connection airports kept for one trip (two directions at MAX_STOPS, two codes each)
 
 
 @dataclass
@@ -84,13 +86,27 @@ def top_picks(flights: list[Flight], ranked: list[Flight] | None = None, n: int 
     }
 
 
+def stop_count(value) -> int:
+    """A feed's number of stops, within what a real trip can have; whatever else it says counts as none."""
+    try:
+        return max(0, min(MAX_STOPS, int(value or 0)))
+    except (TypeError, ValueError, OverflowError):
+        return 0
+
+
+def capped_connections(codes: list[str]) -> list[str]:
+    """A feed's connection airports, at most MAX_CONNECTIONS. The last place says "?" if some were cut off, so the
+    fare counts as one whose connections can't be judged."""
+    return codes if len(codes) <= MAX_CONNECTIONS else [*codes[:MAX_CONNECTIONS - 1], "?"]
+
+
 def transfer_airports(hops: list[tuple], stops: int) -> list[str]:
     """Where one direction's flights (origin, destination) connect: the airport landed at and, when the next flight
     leaves from another one, that one too. A stop with nothing to read counts as "?"."""
     out = []
     for (_, landed), (leaves, _) in zip(hops, hops[1:]):
         out += [str(code).upper() if code else "?" for code in dict.fromkeys((landed, leaves))]
-    return out + ["?"] * (stops - max(len(hops) - 1, 0))
+    return capped_connections(out + ["?"] * (stop_count(stops) - max(len(hops) - 1, 0)))
 
 
 def _sky_code(place) -> str | None:
@@ -99,7 +115,7 @@ def _sky_code(place) -> str | None:
 
 def _leg_connections(raw: dict) -> list[str]:
     hops = [(_sky_code(s.get("origin")), _sky_code(s.get("destination"))) for s in raw.get("segments") or [] if isinstance(s, dict)]
-    return transfer_airports(hops, int(raw.get("stopCount") or 0))
+    return transfer_airports(hops, stop_count(raw.get("stopCount")))
 
 
 def _leg(raw: dict) -> Leg:
@@ -110,7 +126,7 @@ def _leg(raw: dict) -> Leg:
         depart=raw.get("departure") or "",
         arrive=raw.get("arrival") or "",
         minutes=int(raw.get("durationInMinutes") or 0),
-        stops=int(raw.get("stopCount") or 0),
+        stops=stop_count(raw.get("stopCount")),
         airlines=" + ".join(c.get("name", "?") for c in carriers) or "?",
     )
 
@@ -127,7 +143,7 @@ def _flight(raw: dict) -> Flight | None:
         tags=list(raw.get("tags") or []),
         score=raw.get("score"),
         self_transfer=bool(raw.get("isSelfTransfer")),
-        connections=[c for leg in raw.get("legs") or [] for c in _leg_connections(leg)],
+        connections=capped_connections([c for leg in raw.get("legs") or [] for c in _leg_connections(leg)]),
     )
 
 
@@ -234,7 +250,7 @@ def _avia_flight(ticket: dict, legs: list, airlines: dict) -> tuple[Flight, str 
         out.append(Leg(origin=str(hops[0].get("origin") or "?"), destination=str(hops[-1].get("destination") or "?"),
                        depart=_avia_time(hops[0].get("local_departure_date_time")),
                        arrive=_avia_time(hops[-1].get("local_arrival_date_time")),
-                       minutes=max(round(seconds / 60), 0), stops=len(hops) - 1, airlines=" + ".join(names)))
+                       minutes=max(round(seconds / 60), 0), stops=stop_count(len(hops) - 1), airlines=" + ".join(names)))
         connections += transfer_airports([(h.get("origin"), h.get("destination")) for h in hops], len(hops) - 1)
         for t in seg.get("transfers") or []:
             if not isinstance(t, dict):
@@ -247,7 +263,8 @@ def _avia_flight(ticket: dict, legs: list, airlines: dict) -> tuple[Flight, str 
     value = float(offer["price"]["value"])
     code = str(offer["price"].get("currency_code") or "").upper() or None
     flight = Flight(id=str(ticket.get("id")), price=value, price_text=money.fmt(value, code or "RUB"), legs=out,
-                    tags=tags, score=ticket.get("score"), self_transfer=self_transfer, connections=connections)
+                    tags=tags, score=ticket.get("score"), self_transfer=self_transfer,
+                    connections=capped_connections(connections))
     return flight, code
 
 

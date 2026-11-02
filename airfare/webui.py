@@ -6,6 +6,7 @@ import base64
 import hashlib
 import json
 import logging
+import math
 import re
 import threading
 import time
@@ -19,10 +20,10 @@ from pathlib import Path
 
 from . import (__version__, analyst, brand, chatgpt, cleanup, dashboard, deepseek, extension, filters, historypage, i18n,
                limits, links, markup, migrate, money, openai_api, platform, pricelog, report, research, runner, serpapi,
-               service, tray, update)
+               service, tray, update, upgrade)
 from .i18n import Problem
-from .config import (ALERT_KINDS, KEYS, LIMITS, PROJECT_DIR, REPORTS_DIR, SOURCES, WEBUI_PORT, load_config,
-                     load_state, save_config)
+from .config import (ALERT_KINDS, KEYS, LIMITS, LOCK_FILE, PROJECT_DIR, REPORTS_DIR, SOURCES, WEBUI_PORT, load_config,
+                     load_history, load_state, save_config, save_history)
 from .urls import CABINS, aviasales_url, clean_ages, plan_pages, route_label, route_pages
 
 log = logging.getLogger(__name__)
@@ -141,45 +142,53 @@ def _number(raw, what: str, lo: float, hi: float, default=None):
 
 
 def clean_alerts(raw: dict, cfg: dict, rates: dict | None) -> dict:
-    """The three alert kinds from the form. Price ceilings follow a currency change at today's rate."""
+    """The three alert kinds from the form. Price ceilings follow a currency change at today's rate; the highest one
+    allowed is checked afterwards, in the currency they end up in."""
     old_currency, new_currency = cfg.get("currency") or money.DEFAULT, raw.get("currency") or cfg.get("currency")
+    cap = money.price_cap(new_currency, rates or money.rates(refresh=False))
     out = {}
     for kind in ALERT_KINDS:
         k = ((raw.get("alerts") or {}).get(kind)) or {}
         prev = (cfg.get("alerts") or {}).get(kind) or {}
         label = {"cheapest": "Cheapest", "fastest": "Fastest", "best": "Best value"}[kind]
         drop = _number(k.get("drop", prev.get("drop")), f"{label}: the price drop (%)", 0, 50, 0.0)
-        ceiling = _number(k.get("max"), f"{label}: the price limit", 1, 10_000_000)
-        if ceiling is not None and old_currency != new_currency and k.get("max") == prev.get("max"):
-            converted = money.convert(ceiling, old_currency, new_currency, rates or {})
-            if converted is None:
+        ceiling = _number(k.get("max"), f"{label}: the price limit", 1, math.inf)
+        if ceiling is not None and math.isfinite(ceiling) and old_currency != new_currency and k.get("max") == prev.get("max"):
+            ceiling = money.convert_limit(ceiling, old_currency, new_currency, rates or {})
+            if ceiling is None:
                 raise Problem("There's no exchange rate for {currency} yet, so your price limits can't be "
                               "converted. Connect to the internet and save again.", currency=new_currency)
-            ceiling = round(converted)
+        if ceiling is not None and ceiling > cap:
+            raise Problem("{what} is too high for {currency}", what=f"{label}: the price limit", currency=new_currency)
         out[kind] = {"on": bool(k.get("on", prev.get("on", True))), "drop": drop, "max": ceiling}
     return out
 
 
 def clean_filters(r: dict, old: dict | None, old_currency: str, currency: str, rates: dict | None) -> tuple[dict, str | None]:
     """A route's filters from the form, and what's wrong with them, if anything. A price range left as it was
-    follows a currency change at today's rate, as the alert limits do."""
+    follows a currency change at today's rate, as the alert limits do; the range is judged after that, since From
+    and To may then be in the same currency only now."""
     out, problem = {}, None
-    for k in ("price_min", "price_max"):
+    for k in filters.PRICE_KEYS:
         try:
             out[k] = float(r.get(k)) or None if r.get(k) not in (None, "") else None
         except (TypeError, ValueError):
             out[k], problem = None, "the price range should be two numbers, with From no higher than To"
-    low, high = out["price_min"], out["price_max"]
-    if any(v is not None and not 0 < v <= 10_000_000 for v in (low, high)) or (low is not None and high is not None and low > high):
+    if any(out[k] is not None and not out[k] > 0 for k in filters.PRICE_KEYS):
         problem = "the price range should be two numbers, with From no higher than To"
-    if old and old_currency != currency:
-        for k in ("price_min", "price_max"):
-            if out[k] is not None and out[k] == old.get(k):
-                converted = money.convert(out[k], old_currency, currency, rates or {})
-                if converted is None:
+    if old and old_currency != currency and not problem:
+        for k in filters.PRICE_KEYS:
+            if out[k] is not None and math.isfinite(out[k]) and out[k] == old.get(k):
+                out[k] = money.convert_limit(out[k], old_currency, currency, rates or {})
+                if out[k] is None:
                     raise Problem("There's no exchange rate for {currency} yet, so your price limits can't be "
                                   "converted. Connect to the internet and save again.", currency=currency)
-                out[k] = round(converted)
+    low, high = out["price_min"], out["price_max"]
+    if not problem and low is not None and high is not None and low > high:
+        problem = "the price range should be two numbers, with From no higher than To"
+    cap = money.price_cap(currency, rates or money.rates(refresh=False))
+    if not problem and any(v is not None and v > cap for v in (low, high)):
+        problem = "the price range is too high for this currency"
     stops = str(r.get("max_stops") if r.get("max_stops") is not None else "").strip()
     out["max_stops"] = int(stops) if stops in ("0", "1", "2") else None
     airports = filters.clean_codes(r.get("exclude_airports") or [])
@@ -187,6 +196,26 @@ def clean_filters(r: dict, old: dict | None, old_currency: str, currency: str, r
         problem = "excluded transfer airports should be 3-letter airport codes or city codes like LOND, separated by commas"
     out["exclude_airports"] = airports or []
     return out, problem
+
+
+def _keep_references(before: dict, cfg: dict, rates: dict | None) -> None:
+    """After saving a new currency: the routes whose range was only converted keep their alert references. During a
+    check (it has history.json open and holds its lock) the next check compares at its own rate instead."""
+    lock = platform.FileLock(LOCK_FILE)
+    try:
+        if not lock.acquire():
+            return
+    except OSError:
+        return
+    try:
+        history = load_history()
+        if filters.follow_currency(history, before.get("routes") or [], cfg["routes"], before.get("currency"),
+                                   cfg.get("currency"), rates):
+            save_history(history)
+    except (OSError, ValueError) as e:
+        log.warning("couldn't move the alert references to the new currency: %s", e)
+    finally:
+        lock.release()
 
 
 def new_key(raw: dict, cfg: dict, name: str) -> str:
@@ -586,8 +615,10 @@ class Handler(BaseHTTPRequestHandler):
                         "service": service.status(), "currencies": money.CURRENCIES, "tray_available": tray.available(),
                         "limits": limits.LEVELS,
                         "update": update.cached(state), "version": __version__, "data_version": migrate.status(),
-                        # where the update steps say to unzip a new release, and which steps they are
-                        "folder": str(PROJECT_DIR), "system": SYSTEM})
+                        # where the update steps say to extract a new release, and which steps they are
+                        "folder": str(PROJECT_DIR), "parent": str(PROJECT_DIR.parent),
+                        "other_name": PROJECT_DIR.name if upgrade.other_folder_name(PROJECT_DIR) else "",
+                        "system": SYSTEM})
         elif self.path == "/api/status":
             self._json({"task": TASKS.current, "last_task": TASKS.last, "latest": latest_analysis()})
         elif self.path in ("/cleanup", "/cleanup.html"):
@@ -639,7 +670,12 @@ class Handler(BaseHTTPRequestHandler):
                 save_config(cfg)
                 if service.needed(cfg) and cfg["routes"] and service.start_in_background():
                     log.info("started the background checker (interval checks or the tray icon)")
-                restart = filters.changed_routes(before.get("routes") or [], cfg["routes"], before.get("currency"), cfg.get("currency"))
+                new_currency = before.get("currency") != cfg.get("currency")
+                rates = money.rates(refresh=False) if new_currency else None      # what clean_config converted with
+                restart = filters.changed_routes(before.get("routes") or [], cfg["routes"], before.get("currency"),
+                                                 cfg.get("currency"), rates)
+                if new_currency:
+                    _keep_references(before, cfg, rates)
                 return self._json({"config": public_config(cfg), "preview": preview(cfg), "service": service.status(),
                                    "filters_changed": [route_label(r) for r in restart]})
             if self.path == "/api/update":

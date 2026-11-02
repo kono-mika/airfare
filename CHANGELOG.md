@@ -14,7 +14,7 @@ Updates that never lose data, and three filters per route.
   step puts the data back as it was. Schema 2 turns the single `min_drop_percent` of settings from before alert
   kinds into the three alert kinds; 1.4.1's files come through unchanged.
 - **Backups.** Before a step changes anything, `config.json`, `state.json`, `history.json`,
-  `price_history.json`, `price_research.json`, `dashboard.json`, `rates.json` and the `openai/` and `deepseek/`
+  `price_history.json`, `price_research.json`, `dashboard.json`, `rates.json`, `version.json` and the `openai/` and `deepseek/`
   folders are copied to `data/backups/<old version>-<YYYYMMDD-HHMM>/`; the newest three are kept. Clean up lists
   the backups with their size and deletes the ones picked; Start over keeps them.
 - **Data from a newer AirFare** (after going back to an older release) is never migrated or rewritten. Settings
@@ -22,7 +22,7 @@ Updates that never lose data, and three filters per route.
   keeps working.
 - **Settings survive going either way.** `save_config` keeps top-level keys and route fields this version
   doesn't know, so a newer or older AirFare's settings are not lost when Settings saves.
-- **Unzipping a new release over the old folder just works.**
+- **Extracting a new release over the old folder just works.**
   - `.venv/airfare-install.json` records the installed version and the SHA-256 of `requirements.txt`.
   - `AirFare.exe` notices when the code's version differs from the installed one and finishes the update in
     the setup window (`install.ps1 -Upgrade`): it stops the previous version's background checker and Settings
@@ -59,6 +59,32 @@ Updates that never lose data, and three filters per route.
     the next check (`history.json` keeps the filters they were set under); Settings says so when saving.
   - New price-history records taken under filters carry them (`filters`). The History page marks records taken under
     other filters than the route's current ones, and the CSV has a `filters` column at its end.
+- **Updating by unzipping.** The zip has a top-level `AirFare` folder, so every update instruction now says to extract
+  it into the folder that contains the AirFare folder (Settings shows the real one); macOS and Linux get a terminal
+  command, `unzip -o AirFare.zip -d "<parent folder>"`. `AirFare.exe`, `install.ps1` and `install.sh` stop before
+  installing anything when they start inside an AirFare folder, and say what to do.
+- **Currency and price range.** A range changed in the same save as the currency restarts that route's alert
+  references, and Settings says so, unless it equals the converted one; without rates, it restarts. A range only
+  converted keeps them, even if the rate has moved by the next check.
+- **Unfinished updates on Windows.** `python -m airfare` stopping with exit code 5 now also shows a notification
+  (a message box if that fails) saying to run `AirFare.exe --install`. `install.ps1` rebuilds `AirFare.exe` when
+  `launcher\AirFare.cs` is newer than it or its file version differs from the code's.
+- **Backups and migration.** Any failure to back up, list backups or run a step is a clear, logged `MigrationError`.
+  A failed backup leaves no `.partial` folder and stale ones go at the next start. Old backups go only after a
+  migration that worked, and a failed attempt's backup is used again, so failures never push out earlier versions'.
+  Backups hold `version.json`. A version.json that can't be read stays as it is, nothing is migrated, and the log
+  says so. Versions compare by their numeric release (1.5.0rc1 counts as 1.5.0).
+- **One installer at a time.** `install.ps1` and `install.sh` hold `.venv/airfare-install.lock` for their whole run;
+  `AirFare.exe` and `python -m airfare` say *AirFare is being updated, try again in a few minutes* meanwhile.
+- **The updater's safety.** Cleaning up never enters or deletes through a link or junction and only deletes inside
+  the code folder. `MANIFEST.txt` comes first in the zip and ends with the file count; nothing is deleted unless it
+  is whole and names this version. The background checker is stopped only once its process is confirmed as AirFare's
+  from this folder; otherwise the window says to quit AirFare by hand.
+- **Small hardening.** A feed's stops are clamped to 0-9 and its connection list capped. CSV cells starting with `=`,
+  `+`, `-`, `@`, a tab or a line break get a leading apostrophe. Logs and the console name the backup folder, not its
+  full path. Price ranges and alert limits have a cap per currency (10,000,000 euros in its units), checked after
+  converting, with its own message. No install record and a `.git` folder is a developer's setup, not an unfinished
+  update.
 - **Tests:** the check that runs the extension's code in Node.js no longer depends on the machine's speed, the
   test runner's stdin or AirFare's port (it failed once on Windows in CI, waiting for Node.js for 30 seconds).
 

@@ -176,7 +176,7 @@ def cmd_migrate(args) -> int:
         print(migrate.NEWER_MESSAGE.format(version=found["app"]) + ". Nothing was changed.")
     elif result["steps"]:
         print(f"Updated the data from AirFare {found['app']} to {result['to']['app']}."
-              + (f" Backup: {result['backup']}" if result["backup"] else ""))
+              + (f" Backup: {result['backup']}" if result["backup"] else ""))    # its name, not its whole path
     else:
         print(f"The data is up to date (AirFare {result['to']['app']}, format {result['to']['schema']}).")
     return 0
@@ -310,7 +310,14 @@ def _starting(cmd: str, check_install: bool) -> int | None:
     """Before a command reads anything: the setup matches the code, and the data folder is up to date
     (migrate.py). An exit code when the command can't go on."""
     from . import migrate, upgrade
-    problem = upgrade.mismatch() if check_install and cmd not in ("migrate", "doctor") else None
+    # The install scripts run these two themselves, holding their lock and before their record is written.
+    guarded = check_install and cmd not in ("migrate", "doctor")
+    if guarded and upgrade.updating():
+        if sys.stderr:
+            print(upgrade.BEING_UPDATED, file=sys.stderr)
+        upgrade.tell_desktop(upgrade.BEING_UPDATED)
+        return upgrade.UPDATING
+    problem = upgrade.mismatch() if guarded else None
     if problem:
         upgrade.note(problem)
         if sys.stderr:
