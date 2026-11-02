@@ -277,7 +277,8 @@ system tray).
 **Updates:** **Fine-tuning → Updates** asks GitHub for the latest release when you press **Check for
 updates**, and, if you leave the switch on, once a day when Settings opens (one anonymous request, nothing
 about you is sent). A copy whose `airfare/__init__.py` names no repository doesn't check at all. When a newer
-release is out, Settings shows the update steps below in short, with the link to the release.
+release is out, Settings shows the update steps below in short, with the link to the release. The version you have
+is at the bottom of every page, under **Updates**, first in the tray menu, and in `python -m airfare --version`.
 
 ## Update AirFare
 

@@ -954,7 +954,7 @@ _V14 = {
     "Quit AirFare": ("Salir de AirFare", "Выйти из AirFare"),
     "Saved. Anthropic accepts the key.": ("Guardada. Anthropic acepta la clave.", "Сохранено. Anthropic принимает ключ."),
     "AirFare is running.": ("AirFare está en marcha.", "AirFare работает."),
-    "AirFare {version}.": ("AirFare {version}.", "AirFare {version}."),
+    "Version": ("Versión", "Версия"),
     "That's it. AirFare opens your Skyscanner and Aviasales pages in a minimized browser window and closes only those tabs when it's done. If a site asks for a robot check, the window comes up so you can solve it.":
         ("Eso es todo. AirFare abre tus páginas de Skyscanner y Aviasales en una ventana minimizada del navegador y, al terminar, cierra solo esas pestañas. Si un sitio pide una verificación de robot, la ventana aparece para que la resuelvas.",
          "Готово. AirFare открывает страницы Skyscanner и Aviasales в свёрнутом окне браузера и по окончании закрывает только эти вкладки. Если сайт попросит проверку на робота, окно появится, чтобы вы её прошли."),

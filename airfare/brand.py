@@ -5,9 +5,11 @@ so they look the same online, offline and when opened straight from disk.
 """
 from __future__ import annotations
 
+import html
 import json
 from urllib.parse import quote
 
+from . import __version__
 from .config import WEBUI_PORT
 from .i18n import LANGS, norm, tr
 
@@ -117,6 +119,7 @@ NAV_SCRIPT = """<script>
       document.documentElement.lang = lang;
       document.querySelectorAll(".langs a").forEach(x => x.toggleAttribute("aria-current", x === a));
       document.querySelectorAll(".tabs a").forEach((t, i) => { t.textContent = say(lang, "tabs")[i]; });
+      document.querySelectorAll(".version").forEach(v => { v.textContent = say(lang, "version") + ": " + v.dataset.version; });
       window.airfareLanguage(lang);
     } else if (served) {
       e.preventDefault();
@@ -155,7 +158,8 @@ NAV_SCRIPT = """<script>
   });
 })();
 </script>"""
-NAV_TEXTS = {"starting": "Starting AirFare…", "failed": "AirFare didn't start. Open it from its desktop or Start menu icon."}
+NAV_TEXTS = {"starting": "Starting AirFare…", "failed": "AirFare didn't start. Open it from its desktop or Start menu icon.",
+             "version": "Version"}
 NAV_SCRIPT = NAV_SCRIPT.replace("__PORT__", str(WEBUI_PORT)).replace("__TABS__", json.dumps(
     {lang: {"tabs": [tr(label, lang) for _, label, _ in PAGES], **{k: tr(t, lang) for k, t in NAV_TEXTS.items()}}
      for lang in LANGS}, ensure_ascii=False))
@@ -205,14 +209,22 @@ def legal(lang: str = "en") -> str:
     return f'<p class="legal">{text}</p>'
 
 
-LEGAL_CSS = ".legal { color:var(--muted); font-size:12px; margin:40px 0 0; border-top:1px solid var(--line); padding-top:12px; }"
+def version_line(lang: str = "en", version: str | None = None) -> str:
+    """The "Version: 1.5.0" line at the bottom of every page, and of Updates in Settings: this AirFare's version, or
+    the one named (a stored page's, whatever the data file says). The language links switch it in place (NAV_SCRIPT)."""
+    shown = html.escape(version if version and isinstance(version, str) else __version__)
+    return f'<p class="version" data-version="{shown}">{tr("Version", lang)}: {shown}</p>'
+
+
+LEGAL_CSS = (".legal { color:var(--muted); font-size:12px; margin:40px 0 0; border-top:1px solid var(--line); padding-top:12px; }"
+             ".version { color:var(--muted); font-size:12px; margin:8px 0 0; }")
 
 
 def fill(page: str, lang: str = "en") -> str:
     """Put the shared pieces into a page that marks them with placeholders."""
     for key, value in (("/*TOKENS*/", TOKENS_CSS + LEGAL_CSS), ("/*NAV_CSS*/", NAV_CSS), ("<!--NAV_SCRIPT-->", NAV_SCRIPT),
                        ("<!--LOGO-->", LOGO_SVG), ("<!--SKY-->", SKY_SVG), ("__FAVICON__", FAVICON),
-                       ("__PLANE__", PLANE_PATH), ("<!--LEGAL-->", legal(lang))):
+                       ("__PLANE__", PLANE_PATH), ("<!--LEGAL-->", legal(lang)), ("<!--VERSION-->", version_line(lang))):
         page = page.replace(key, value)
     for key, _, _ in PAGES:
         page = page.replace(f"<!--TOP:{key}-->", top_bar(key, lang))

@@ -10,8 +10,16 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import platform, runner
-from .config import CONFIG_FILE, PROJECT_DIR, load_config, load_state
+from . import __version__
+
+if __name__ == "__main__" and sys.argv[1:] == ["--version"]:
+    # Before the imports below, so it also answers from a Python without AirFare's packages, or in the middle of an
+    # update: when something is wrong is when a bug report asks for it.
+    print(f"AirFare {__version__}")
+    sys.exit(0)
+
+from . import platform, runner  # noqa: E402
+from .config import CONFIG_FILE, PROJECT_DIR, load_config, load_state  # noqa: E402
 
 
 def _console_ok() -> bool:
@@ -199,7 +207,7 @@ def cmd_doctor(args) -> int:
         ok &= good
         print(("  OK   " if good else "  !!   ") + text)
 
-    print("AirFare doctor")
+    print(f"AirFare doctor (version {__version__})")
     from . import migrate, upgrade
     data = migrate.status()
     if data["newer"]:
@@ -337,6 +345,7 @@ def _starting(cmd: str, check_install: bool) -> int | None:
 
 def main(argv=None, check_install: bool = False) -> int:
     p = argparse.ArgumentParser(prog="airfare", description=__doc__)
+    p.add_argument("--version", action="version", version=f"AirFare {__version__}")
     sub = p.add_subparsers(dest="cmd")
     r = sub.add_parser("run", help="check prices once, now")
     r.add_argument("-v", "--verbose", action="store_true", help="log to the console too")

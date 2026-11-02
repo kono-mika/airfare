@@ -1,6 +1,6 @@
 """A AirFare icon in the notification area (system tray), shown by the background checker when Settings asks
-for it. Its menu shows when the last check ran and the next is due, runs a check now, opens the Dashboard,
-Price history or Settings, and can quit the checker.
+for it. Its menu shows AirFare's version, when the last check ran and the next is due, runs a check now, opens the
+Dashboard, Price history or Settings, and can quit the checker.
 
 pystray draws the icon from assets/airfare-256.png (through Pillow). Without those packages AirFare simply
 runs without an icon."""
@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import threading
 
-from . import platform
+from . import __version__, platform
 from .config import PROJECT_DIR
 from .i18n import tr
 
@@ -41,6 +41,7 @@ class Tray:
         self.lang, self.on_check, self.on_quit = lang, on_check, on_quit
         self.status = tr("AirFare is running.", lang)
         self.icon = pystray.Icon("AirFare", Image.open(ICON), "AirFare", menu=pystray.Menu(
+            pystray.MenuItem(f"AirFare {__version__}", None, enabled=False),
             pystray.MenuItem(lambda item: self.status, None, enabled=False),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(tr("Check prices now", lang), self._check),

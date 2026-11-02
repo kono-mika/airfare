@@ -186,6 +186,7 @@ label.check { display:flex; align-items:center; gap:8px; font-size:14px; padding
   <div class="actions"><button class="btn" id="csv" data-i18n>Export CSV</button><span class="served"><button class="btn danger" id="del-shown"></button> <button class="btn danger" id="del-route" data-i18n>Delete all history for this route</button></span></div>
 </section>
 <!--RATES_CREDIT-->
+<!--VERSION-->
 </main>
 <!--NAV_SCRIPT-->
 <script type="application/json" id="data">__DATA__</script>

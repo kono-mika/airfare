@@ -106,6 +106,7 @@ button.linkish { align-self: flex-start; border: 0; background: none; padding: 0
 .badge.skip { text-decoration: line-through; }
 .muted { color: var(--muted); font-size: 13px; }
 .warn-text { color: var(--warn); font-size: 13px; }
+.sub-block .version { font-size: 14px; }
 .update-steps { margin: 8px 0 4px; padding-left: 22px; font-size: 14px; } .update-steps li { margin: 3px 0; overflow-wrap: anywhere; }
 .ok-text { color: var(--ok); font-size: 13px; }
 .err-text { color: var(--bad); font-size: 13px; }
@@ -485,6 +486,7 @@ code { background: var(--soft); border-radius: 5px; padding: 1px 6px; font-size:
       <p class="muted" id="count"></p>
       <div class="sub-block">
         <h3 data-i18n>Updates</h3>
+        <!--VERSION-->
         <div class="inline-row" style="margin-top:8px">
           <span class="muted" id="update-status"></span>
           <button class="btn small" id="update-check" data-i18n>Check for updates</button>
@@ -503,6 +505,7 @@ code { background: var(--soft); border-radius: 5px; padding: 1px 6px; font-size:
     <div class="panel analysis" id="latest"><p class="muted" data-i18n-html="html:no-checks">No checks yet. Press <strong>Run check now</strong> once your routes are saved.</p></div>
   </section>
   <!--LEGAL-->
+  <!--VERSION-->
 </main>
 
 <div class="bar">
@@ -603,7 +606,7 @@ code { background: var(--soft); border-radius: 5px; padding: 1px 6px; font-size:
 const H = {"Content-Type": "application/json", "X-AirFare": "1"};
 const SETTINGS = ["domain", "wait_seconds", "max_pages", "model", "session_max_k", "deepseek_model", "openai_model",
                   "interval_hours", "alert_max_hours", "browser"];
-let BROWSERS = {}, VERSION = "", FOLDER = "", PARENT = "", OTHER_NAME = "", SYSTEM = "windows", updateLast = null, dataVersion = {};
+let BROWSERS = {}, FOLDER = "", PARENT = "", OTHER_NAME = "", SYSTEM = "windows", updateLast = null, dataVersion = {};
 let LIMITS = {}, limitsOk = false;      // the levels' numbers (limits.py); whether Extended's warning was accepted
 const NUMERIC = ["wait_seconds", "max_pages", "session_max_k", "interval_hours", "alert_max_hours"];
 const KEYS = ["serpapi_key", "deepseek_api_key", "openai_api_key", "anthropic_api_key"];
@@ -1197,10 +1200,10 @@ function showUpdate(u) {
   updateLast = u || updateLast;
   updateSteps(u);
   if (!u) return;
-  if (!u.set_up) { el.textContent = t("AirFare {version}.", {version: VERSION}) + " " + t("Update checks aren't set up for this copy of AirFare."); $("#update-check").hidden = true; return; }
-  if (u.newer) { el.innerHTML = `${esc(t("AirFare {version}.", {version: VERSION}))} <a href="${esc(u.url)}" target="_blank" rel="noopener">${esc(t("Version {latest} is available on GitHub.", {latest: u.latest}))}</a>`; return; }
-  el.textContent = t("AirFare {version}.", {version: VERSION}) + " " + (u.error ? t("The last update check failed: {error}", {error: t(u.error)})
-    : u.checked ? t("Up to date (checked {when}).", {when: u.checked.replace("T", " ")}) : t("Not checked yet."));
+  if (!u.set_up) { el.textContent = t("Update checks aren't set up for this copy of AirFare."); $("#update-check").hidden = true; return; }
+  if (u.newer) { el.innerHTML = `<a href="${esc(u.url)}" target="_blank" rel="noopener">${esc(t("Version {latest} is available on GitHub.", {latest: u.latest}))}</a>`; return; }
+  el.textContent = u.error ? t("The last update check failed: {error}", {error: t(u.error)})
+    : u.checked ? t("Up to date (checked {when}).", {when: u.checked.replace("T", " ")}) : t("Not checked yet.");
 }
 async function checkUpdate(force) {
   if (force) $("#update-status").textContent = t("Checking…");
@@ -1242,7 +1245,7 @@ async function init() {
   const s = await api("/api/state");
   cfg = s.config; view = s.preview; svc = s.service || {}; extLatest = s.extension_latest; lastState = s.state;
   if (s.currencies) CURRENCIES = s.currencies;
-  BROWSERS = s.browsers || {}; VERSION = s.version || ""; LIMITS = s.limits || {};
+  BROWSERS = s.browsers || {}; LIMITS = s.limits || {};
   FOLDER = s.folder || ""; PARENT = s.parent || ""; OTHER_NAME = s.other_name || ""; SYSTEM = s.system || "windows"; dataVersion = s.data_version || {}; showDataVersion();
   $("#tray-note").hidden = s.tray_available !== false;
   $("#tray").disabled = s.tray_available === false;
