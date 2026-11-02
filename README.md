@@ -278,7 +278,8 @@ system tray).
 updates**, and, if you leave the switch on, once a day when Settings opens (one anonymous request, nothing
 about you is sent). A copy whose `airfare/__init__.py` names no repository doesn't check at all. When a newer
 release is out, Settings shows the update steps below in short, with the link to the release. The version you have
-is at the bottom of every page, under **Updates**, first in the tray menu, and in `python -m airfare --version`.
+is at the bottom of every page, under **Updates**, first in the tray menu, and in `python -m airfare --version`; a
+Dashboard or Price history whose latest check came from another version says *Checked with AirFare x.y.z* instead.
 
 ## Update AirFare
 
@@ -432,7 +433,7 @@ published, so expect that answer often.
   were set under (`filters`).
 - `reports/*-prices.md`: the price document sent to Claude. `reports/*-analysis.md` and
   `reports/latest.html` hold Claude's answer.
-- `price_history.json`: every recorded price, for the Price history tab. A record taken under filters carries
+- `price_history.json`: every recorded price, for the Price history tab, each with the version that took it. A record taken under filters carries
   them (`filters`); older records have none. `price_research.json` holds the lowest-price lookups.
 - `rates.json`: the latest exchange rates (public figures), so a check without internet still converts.
 - `dashboard.json`: each route's last dashboard section in every language, so earlier routes keep their tab.

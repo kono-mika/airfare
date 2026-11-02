@@ -25,6 +25,13 @@ def line(lang: str = "en", version: str = __version__) -> str:
     return f'<p class="version" data-version="{version}">{LABELS[lang]}: {version}</p>'
 
 
+CHECKED = {"en": "Checked with AirFare 1.4.9", "es": "Comprobado con AirFare 1.4.9", "ru": "Проверено с помощью AirFare 1.4.9"}
+
+
+def checked(lang: str = "en") -> str:
+    return f'<p class="version" data-version="1.4.9" data-checked>{CHECKED[lang]}</p>'
+
+
 def pages(lang: str) -> dict[str, str]:
     cfg = {**config.DEFAULT_CONFIG, "language": lang}
     return {"Settings": webui.settings_page(lang), "Clean up": webui.cleanup_page(lang),
@@ -52,18 +59,34 @@ def test_the_line_is_written_in_one_place():
         assert 'class="version"' not in text, name
 
 
-def test_a_page_written_by_a_check_keeps_the_version_that_wrote_it(tmp_path, monkeypatch):
+@pytest.mark.parametrize("lang", LABELS)
+def test_a_dashboard_from_a_check_by_another_version_says_so(lang, monkeypatch):
     monkeypatch.setattr(dashboard, "__version__", "1.4.9")
     store = dashboard.record_check({}, PARTS, WHEN)
     assert store["check"]["version"] == "1.4.9"
     monkeypatch.undo()
-    assert line("en", "1.4.9") in dashboard.page(store, "en")          # today's AirFare, showing that check
-    assert __version__ not in re.findall(r'data-version="([^"]+)"', dashboard.page(store, "en"))
+    page = dashboard.page(store, lang)                                 # today's AirFare, showing that check
+    assert checked(lang) in page and f"{LABELS[lang]}: 1.4.9" not in page and page.count('class="version"') == 1
 
+
+def test_a_dashboard_from_a_check_by_this_version_says_version():
+    assert line() in dashboard.page(dashboard.record_check({}, PARTS, WHEN), "en")
+
+
+def test_a_check_by_a_newer_version_is_labelled_the_same_way(monkeypatch):
+    """Going back to an older release: what wrote the page still isn't what's installed."""
+    monkeypatch.setattr(brand, "__version__", "1.4.0")
+    assert checked() in brand.version_line("en", "1.4.9")
+
+
+def test_the_dashboard_files_and_clean_up_keep_the_label(tmp_path, monkeypatch):
+    monkeypatch.setattr(dashboard, "__version__", "1.4.9")
+    store = dashboard.record_check({}, PARTS, WHEN)
+    monkeypatch.undo()
     monkeypatch.setattr(dashboard, "REPORTS_DIR", tmp_path)
     dashboard.write_pages(store, "ru")
-    assert line("ru", "1.4.9") in (tmp_path / "latest.html").read_text(encoding="utf-8")
-    assert line("es", "1.4.9") in (tmp_path / "latest-es.html").read_text(encoding="utf-8")
+    assert checked("ru") in (tmp_path / "latest.html").read_text(encoding="utf-8")
+    assert checked("es") in (tmp_path / "latest-es.html").read_text(encoding="utf-8")
 
     # Clean up writes the page again: it still shows that check.
     two = dashboard.record_check(store, {"en": {"title": "Invented", "routes": {"s": {"name": "Other", "origin": "zzc", "destination": "zzd", "html": ""}}}}, WHEN)
@@ -83,18 +106,96 @@ def test_the_live_dashboard_shows_the_version_of_the_check(tmp_path, monkeypatch
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/latest.html", timeout=5) as r:
-            assert line("en", "1.4.9") in r.read().decode("utf-8")
+            assert checked() in r.read().decode("utf-8")
     finally:
         server.shutdown()
         server.server_close()
 
 
-def test_the_history_page_on_disk_keeps_the_version_that_wrote_it(tmp_path, monkeypatch):
+def _records(*versions) -> list[dict]:
+    """Invented records, oldest first."""
+    return [{"id": f"inv{i}", "time": f"2026-10-2{i}T08:00", "route_id": "r", "route_name": "Invented", "price": 100.0,
+             "currency_code": "EUR", **({"version": v} if v else {})} for i, v in enumerate(versions)]
+
+
+@pytest.mark.parametrize("lang", LABELS)
+@pytest.mark.parametrize("served", [True, False])
+def test_price_history_from_a_check_by_another_version_says_so(monkeypatch, lang, served):
+    monkeypatch.setattr(historypage.pricelog, "load", lambda: _records(__version__, "1.4.9"))
+    page = historypage.build({**config.DEFAULT_CONFIG, "language": lang}, served=served)
+    assert checked(lang) in page and page.count('class="version"') == 1
+    assert '"version": "1.4.9"' in page                        # the record itself stays as it is
+
+
+def test_price_history_goes_by_the_newest_record(monkeypatch):
+    monkeypatch.setattr(historypage.pricelog, "load", lambda: _records("1.4.9", __version__))
+    assert line() in historypage.build({**config.DEFAULT_CONFIG, "language": "en"}, served=True)
+    assert historypage.checked_with(list(reversed(_records("1.4.9", "1.4.8")))) == "1.4.8"
+
+
+@pytest.mark.parametrize("records", [[], _records(None), _records("1.4.9", None)])
+def test_price_history_without_a_recorded_version_names_the_one_building_the_page(monkeypatch, records):
+    monkeypatch.setattr(historypage.pricelog, "load", lambda: records)
+    assert line() in historypage.build({**config.DEFAULT_CONFIG, "language": "en"}, served=True)
+
+
+def test_new_price_records_name_the_version_that_took_them():
+    flight = SimpleNamespace(price=100.0, price_text="€100", orig_text=None, airlines="Invented Air", max_stops=0, minutes=120, marks=[])
+    parsed = SimpleNamespace(flights=[flight], currency="€", currency_code="EUR")
+    page = SimpleNamespace(parsed=parsed, page={"route_id": "r"}, result=SimpleNamespace(source="Invented"))
+    assert historypage.pricelog.records_from_check([page], WHEN)[0]["version"] == __version__
+
+
+def test_the_history_page_on_disk_is_written_with_the_label(tmp_path, monkeypatch):
     monkeypatch.setattr(runner, "REPORTS_DIR", tmp_path)
-    monkeypatch.setattr(brand, "__version__", "1.4.9")
+    monkeypatch.setattr(historypage.pricelog, "load", lambda: _records("1.4.9"))
     runner.write_history_page({**config.DEFAULT_CONFIG, "language": "es"})
-    monkeypatch.undo()
-    assert line("es", "1.4.9") in (tmp_path / "history.html").read_text(encoding="utf-8")
+    assert checked("es") in (tmp_path / "history.html").read_text(encoding="utf-8")
+
+
+def _old_files(tmp_path, monkeypatch) -> None:
+    """A dashboard and history page on disk as the previous version left them, saying "Version: 1.4.9"."""
+    monkeypatch.setattr(upgrade, "write_record", lambda root=None: None)
+    monkeypatch.setattr(config, "CONFIG_FILE", tmp_path / "config.json")
+    config.save_config({**config.DEFAULT_CONFIG, "language": "en"})
+    for module in (dashboard, runner):
+        monkeypatch.setattr(module, "REPORTS_DIR", tmp_path)
+    monkeypatch.setattr(config, "REPORTS_DIR", tmp_path)
+    monkeypatch.setattr(dashboard, "STORE_FILE", tmp_path / "dashboard.json")
+    monkeypatch.setattr(historypage.pricelog, "load", lambda: _records("1.4.9"))
+    store = dashboard.record_check({}, PARTS, WHEN)
+    store["check"]["version"] = "1.4.9"
+    dashboard.save_store(store)
+    for name in ("latest.html", "history.html"):
+        (tmp_path / name).write_text(line("en", "1.4.9"), encoding="utf-8")
+
+
+def test_finishing_an_update_relabels_the_files_that_open_from_disk(tmp_path, monkeypatch):
+    _old_files(tmp_path, monkeypatch)
+    assert upgrade.finish() == 0
+    for name in ("latest.html", "latest-es.html", "history.html"):
+        text = (tmp_path / name).read_text(encoding="utf-8")
+        assert 'data-checked' in text, name
+    assert checked() in (tmp_path / "latest.html").read_text(encoding="utf-8")
+    assert checked() in (tmp_path / "history.html").read_text(encoding="utf-8")
+
+
+def test_finishing_an_update_doesnt_make_files_that_werent_there(tmp_path, monkeypatch):
+    _old_files(tmp_path, monkeypatch)
+    (tmp_path / "history.html").unlink()
+    (tmp_path / "dashboard.json").unlink()
+    (tmp_path / "latest.html").unlink()
+    assert upgrade.finish() == 0
+    assert not (tmp_path / "history.html").exists() and not (tmp_path / "latest.html").exists()
+
+
+def test_a_page_that_cant_be_written_doesnt_fail_the_update(tmp_path, monkeypatch):
+    _old_files(tmp_path, monkeypatch)
+
+    def broken(store, lang):
+        raise OSError(13, "invented")
+    monkeypatch.setattr(dashboard, "write_pages", broken)
+    assert upgrade.finish() == 0
 
 
 def test_a_store_from_before_checks_recorded_it_names_the_version_building_the_page():
@@ -117,27 +218,28 @@ def test_a_dashboard_written_before_this_release_isnt_given_a_version(monkeypatc
     assert 'class="version"' not in webui.served_dashboard(old, "en")
 
 
-def test_the_language_links_switch_the_line_in_place():
+def test_the_language_links_switch_both_labels_in_place():
     """The language links' script, run for real: Settings, Price history and Clean up don't reload."""
     node = shutil.which("node")
     if not node:
         pytest.skip("Node.js isn't installed")
     code = re.search(r"<script>(.*)</script>", brand.NAV_SCRIPT, re.S).group(1)
     script = """
-const version = {dataset: {version: "1.4.9"}, textContent: "Version: 1.4.9"};
+const version = {dataset: {version: "1.5.0"}, textContent: "Version: 1.5.0"};
+const other = {dataset: {version: "$&1.4.9", checked: ""}, textContent: "Checked with AirFare $&1.4.9"};
 const link = {dataset: {lang: "ru"}, handlers: {}, addEventListener(k, f) { this.handlers[k] = f; }, toggleAttribute() {}};
 globalThis.location = {protocol: "file:"};
 globalThis.localStorage = {setItem() {}};
 globalThis.fetch = () => Promise.resolve({ok: true});
 globalThis.window = {airfareLanguage() {}};
-globalThis.document = {documentElement: {}, querySelectorAll: s => s === ".langs a" ? [link] : s === ".version" ? [version] : []};
+globalThis.document = {documentElement: {}, querySelectorAll: s => s === ".langs a" ? [link] : s === ".version" ? [version, other] : []};
 """ + code + """
 link.handlers.click({preventDefault() {}, button: 0});
-console.log(version.textContent);
+console.log(JSON.stringify([version.textContent, other.textContent]));
 """
     out = subprocess.run([node, "-"], input=script, capture_output=True, text=True, encoding="utf-8", timeout=60)
     assert out.returncode == 0, out.stderr
-    assert out.stdout.strip() == "Версия: 1.4.9"
+    assert json.loads(out.stdout) == ["Версия: 1.5.0", "Проверено с помощью AirFare $&1.4.9"]
 
 
 # ----- Settings ------------------------------------------------------------------------------------------------
@@ -218,7 +320,8 @@ def test_the_label_in_three_languages():
 
 def test_the_bug_report_says_where_to_find_the_version():
     text = (ROOT / ".github" / "ISSUE_TEMPLATE" / "bug_report.yml").read_text(encoding="utf-8")
-    assert "description: Shown at the bottom of every AirFare page, or run python -m airfare --version\n" in text
+    assert "description: Shown at the bottom of the Settings page, or run python -m airfare --version\n" in text
+    assert 'placeholder: "1.5.0"\n' in text
 
 
 def test_the_readme_and_changelog_mention_it():

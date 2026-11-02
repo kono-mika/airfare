@@ -393,11 +393,26 @@ def prepare() -> int:
     return code
 
 
+def _rewrite_pages(cfg: dict) -> None:
+    """The dashboard and Price history files open from disk with no AirFare to ask, so a new version writes them once:
+    from now on they say that their latest check came from the previous one. A problem here doesn't fail the update."""
+    from . import dashboard, runner
+    from .config import REPORTS_DIR
+    try:
+        if dashboard.STORE_FILE.exists():
+            dashboard.write_pages(dashboard.load_store(), cfg.get("language"))
+        if (REPORTS_DIR / "history.html").exists():
+            runner.write_history_page(cfg)
+    except Exception as e:
+        log.warning("couldn't write the dashboard and history pages again: %s", type(e).__name__)
+
+
 def finish() -> int:
     write_record()
     from . import service                      # the new packages are installed by now
     from .config import load_config
     cfg = load_config()
+    _rewrite_pages(cfg)
     os.environ[INSTALLER_ENV] = "1"            # the checker started here runs while the install script holds its lock
     if cfg["routes"] and service.needed(cfg) and service.start_in_background():
         print("Started the background checker.")

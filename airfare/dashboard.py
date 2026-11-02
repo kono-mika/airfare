@@ -484,8 +484,8 @@ def _tab_label(r: dict) -> str:
 
 def page(store: dict, lang: str = "en") -> str:
     """The dashboard: the latest check's header, then one tab per route; earlier routes keep their last
-    check until cleared. It names the version that made that check; a store from before checks recorded it names
-    the one building the page."""
+    check until cleared. A check by another version says so (brand.version_line); a store from before checks recorded
+    it names the version building the page."""
     lang = i18n.norm(lang)
     routes = {rid: r for rid, r in (store.get("routes") or {}).items() if isinstance(r, dict)}
     check = store.get("check") or {}

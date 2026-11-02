@@ -119,7 +119,10 @@ NAV_SCRIPT = """<script>
       document.documentElement.lang = lang;
       document.querySelectorAll(".langs a").forEach(x => x.toggleAttribute("aria-current", x === a));
       document.querySelectorAll(".tabs a").forEach((t, i) => { t.textContent = say(lang, "tabs")[i]; });
-      document.querySelectorAll(".version").forEach(v => { v.textContent = say(lang, "version") + ": " + v.dataset.version; });
+      document.querySelectorAll(".version").forEach(v => {
+        v.textContent = "checked" in v.dataset ? say(lang, "checked").replace("{version}", () => v.dataset.version)
+          : say(lang, "version") + ": " + v.dataset.version;
+      });
       window.airfareLanguage(lang);
     } else if (served) {
       e.preventDefault();
@@ -159,7 +162,7 @@ NAV_SCRIPT = """<script>
 })();
 </script>"""
 NAV_TEXTS = {"starting": "Starting AirFare…", "failed": "AirFare didn't start. Open it from its desktop or Start menu icon.",
-             "version": "Version"}
+             "version": "Version", "checked": "Checked with AirFare {version}"}
 NAV_SCRIPT = NAV_SCRIPT.replace("__PORT__", str(WEBUI_PORT)).replace("__TABS__", json.dumps(
     {lang: {"tabs": [tr(label, lang) for _, label, _ in PAGES], **{k: tr(t, lang) for k, t in NAV_TEXTS.items()}}
      for lang in LANGS}, ensure_ascii=False))
@@ -210,9 +213,14 @@ def legal(lang: str = "en") -> str:
 
 
 def version_line(lang: str = "en", version: str | None = None) -> str:
-    """The "Version: 1.5.0" line at the bottom of every page, and of Updates in Settings: this AirFare's version, or
-    the one named (a stored page's, whatever the data file says). The language links switch it in place (NAV_SCRIPT)."""
-    shown = html.escape(version if version and isinstance(version, str) else __version__)
+    """The "Version: 1.5.0" line at the bottom of every page, and of Updates in Settings. `version` is the one that made
+    a page's latest check (whatever the data file says): when that isn't this AirFare, the line says "Checked with
+    AirFare 1.4.1", so it can't be mistaken for the installed version. The language links switch it in place
+    (NAV_SCRIPT)."""
+    written = version if version and isinstance(version, str) else __version__
+    shown = html.escape(written)
+    if written != __version__:
+        return f'<p class="version" data-version="{shown}" data-checked>{tr("Checked with AirFare {version}", lang, version=shown)}</p>'
     return f'<p class="version" data-version="{shown}">{tr("Version", lang)}: {shown}</p>'
 
 

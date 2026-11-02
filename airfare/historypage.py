@@ -87,15 +87,22 @@ def page_data(cfg: dict, rates: dict | None = None) -> dict:
             "sign_after": currency in money.AFTER}
 
 
+def checked_with(records: list[dict]) -> str | None:
+    """The AirFare that took the newest record; None when it doesn't say (from before records named it, or no records)."""
+    return max(records, key=lambda r: str(r.get("time") or ""), default={}).get("version")
+
+
 def build(cfg: dict, served: bool) -> str:
     lang = i18n.norm(cfg.get("language"))
     rates = money.rates(refresh=False)
+    shown = page_data(cfg, rates)
     # "<" written as its JSON escape, so no stored text (a route name, a quote) can end or bend the data block.
-    data = json.dumps({**page_data(cfg, rates), "served": served, "lang": lang, "texts": i18n.bundle()},
+    data = json.dumps({**shown, "served": served, "lang": lang, "texts": i18n.bundle()},
                       ensure_ascii=False).replace("<", "\\u003c")
     # The converted prices' rates credit: fixed HTML outside the scripts, put in before the data goes in.
     credit = f'<p class="muted">{money.CREDIT_HTML}</p>' if money.needs_credit(rates) else ""
-    page = PAGE.replace("__LANG__", lang).replace("<!--RATES_CREDIT-->", credit)
+    page = (PAGE.replace("__LANG__", lang).replace("<!--RATES_CREDIT-->", credit)
+            .replace("<!--VERSION-->", brand.version_line(lang, checked_with(shown["records"]))))
     return brand.fill(page, lang).replace("__DATA__", data)
 
 

@@ -1,7 +1,8 @@
 """Every price AirFare has seen, kept locally in data/price_history.json for the History page.
 
 One record per check, route, source and date pair: that page's cheapest flight that matches the route's filters.
-A record taken under filters carries them ("filters"); records from before there were filters have none. Deleting
+A record taken under filters carries them ("filters"); records from before there were filters have none. A record
+names the AirFare that took it ("version"), which the History page shows; older records have none. Deleting
 records here only changes what the History page shows; LOW PRICE alert references live in history.json and are
 not touched.
 """
@@ -12,7 +13,7 @@ import time
 import uuid
 from datetime import datetime
 
-from . import platform
+from . import __version__, platform
 from .config import DATA_DIR, read_json, write_json
 
 log = logging.getLogger(__name__)
@@ -76,6 +77,7 @@ def records_from_check(pages, when: datetime) -> list[dict]:
             "stops": f.max_stops,
             "minutes": f.minutes,
             "url": page.get("url"),
+            "version": __version__,
             **({"filters": page["filters"]} if page.get("filters") else {}),
             **({"marks": list(f.marks)} if f.marks else {}),
         })
