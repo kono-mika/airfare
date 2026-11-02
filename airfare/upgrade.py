@@ -305,6 +305,16 @@ def _names_environment(text: str, root: Path) -> bool:
                for r in dict.fromkeys((root, root.resolve())))
 
 
+def _windows_launcher(pid: int) -> str | None:
+    """Windows: the program that started this process, as "program=<its path>"; nothing when that process is gone
+    or came after this one (Windows may give a dead process's id to a new one)."""
+    script = ("[Console]::OutputEncoding = [Text.Encoding]::UTF8; "
+              f"$me = Get-CimInstance Win32_Process -Filter 'ProcessId={int(pid)}'; "
+              "$up = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $me.ParentProcessId); "
+              "if ($up -and $up.CreationDate -le $me.CreationDate) { 'program=' + $up.ExecutablePath }")
+    return _run_text(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script])
+
+
 def is_checker(pid: int, root: Path = PROJECT_DIR) -> bool:
     """Whether this process is AirFare's background checker from this folder. A process id from a file may by now
     belong to anything: a process that isn't confirmed here is never stopped."""
@@ -315,6 +325,10 @@ def is_checker(pid: int, root: Path = PROJECT_DIR) -> bool:
         return False
     if _names_environment(text, root):
         return True
+    # On Windows, a .venv's python.exe only starts the real Python and waits for it, and the real one's command line
+    # names the .venv or not depending on the version (3.14 does, 3.12 doesn't). What started it always is the .venv's.
+    if platform.WINDOWS:
+        return _names_environment(_windows_launcher(pid) or "", root)
     # A Python from python.org or Homebrew on a Mac starts its real program, which shows another path; the
     # environment it came from is still in what it was started with.
     return platform.MACOS and _names_environment(_run_text(["ps", "-E", "-o", "command=", "-p", str(int(pid))]) or "", root)

@@ -1031,8 +1031,31 @@ def test_a_mac_python_that_hides_the_environment_is_confirmed_by_how_it_was_star
     assert not upgrade.is_checker(4242, root)
 
 
-def test_the_real_checker_process_is_confirmed_and_another_isnt(tmp_path):
-    """A real process in a real environment, on each system: how each shows its command line, and what it hides."""
+def test_a_windows_python_that_shows_its_base_path_is_confirmed_by_what_started_it(monkeypatch):
+    """Python 3.12's real process names its base Python, not the .venv; its parent is the .venv's python.exe."""
+    monkeypatch.setattr(platform, "WINDOWS", True)
+    monkeypatch.setattr(platform, "MACOS", False)
+    root = _Folder(r"D:\Invented\AirFare", "\\")
+    monkeypatch.setattr(upgrade, "command_line", lambda pid: r'"C:\Invented\Python312\pythonw.exe" -m airfare service')
+    for started_by, confirmed in ((r"program=D:\Invented\AirFare\.venv\Scripts\pythonw.exe", True),
+                                  (r"program=D:\Invented\Other\.venv\Scripts\pythonw.exe", False),
+                                  (r"program=C:\Windows\explorer.exe", False), ("", False), (None, False)):
+        monkeypatch.setattr(upgrade, "_run_text", lambda cmd, text=started_by: text)
+        assert upgrade.is_checker(4242, root) is confirmed, started_by
+
+
+def test_only_a_checker_is_looked_up_by_what_started_it(monkeypatch):
+    monkeypatch.setattr(platform, "WINDOWS", True)
+    monkeypatch.setattr(platform, "MACOS", False)
+    monkeypatch.setattr(upgrade, "command_line", lambda pid: r'"C:\Invented\Python312\python.exe" -m airfare setup')
+    monkeypatch.setattr(upgrade, "_run_text", lambda cmd: r"program=D:\Invented\AirFare\.venv\Scripts\python.exe")
+    assert not upgrade.is_checker(4242, _Folder(r"D:\Invented\AirFare", "\\"))
+
+
+@pytest.mark.parametrize("program", ["python", pytest.param("pythonw", marks=windows_only)])
+def test_the_real_checker_process_is_confirmed_stopped_and_another_isnt(tmp_path, program):
+    """A real process in a real environment, on each system and Python version: how each shows its command line,
+    and what it hides. AirFare's own start uses pythonw.exe on Windows."""
     root = tmp_path / "Invented АирФаре" / "AirFare"
     (root / "airfare").mkdir(parents=True)
     pid_file = root / "pid.txt"
@@ -1042,7 +1065,7 @@ def test_the_real_checker_process_is_confirmed_and_another_isnt(tmp_path):
         f"open(r'{pid_file}', 'w').write(str(os.getpid()))\n"
         "time.sleep(60)\n", encoding="utf-8")
     subprocess.run([sys.executable, "-m", "venv", "--without-pip", str(root / ".venv")], check=True, timeout=180)
-    python = root / ".venv" / ("Scripts/python.exe" if platform.WINDOWS else "bin/python")
+    python = root / ".venv" / (f"Scripts/{program}.exe" if platform.WINDOWS else f"bin/{program}")
     process = subprocess.Popen([str(python), "-m", "airfare", "service"], cwd=root, stdout=subprocess.DEVNULL,
                                stderr=subprocess.DEVNULL, creationflags=platform.NO_WINDOW)
     try:
@@ -1053,12 +1076,15 @@ def test_the_real_checker_process_is_confirmed_and_another_isnt(tmp_path):
         assert upgrade.is_checker(pid, root), upgrade.command_line(pid)
         assert not upgrade.is_checker(pid, tmp_path / "Other" / "AirFare")
         assert not upgrade.is_checker(os.getpid(), root)        # this test's own process
+        upgrade._end(pid)                                       # the process that was confirmed is the one to stop
+        assert process.wait(timeout=30) is not None
     finally:
-        if platform.WINDOWS:
-            subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], capture_output=True, creationflags=platform.NO_WINDOW)
-        else:
-            process.kill()
-        process.wait(timeout=30)
+        if process.poll() is None:
+            if platform.WINDOWS:
+                subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], capture_output=True, creationflags=platform.NO_WINDOW)
+            else:
+                process.kill()
+            process.wait(timeout=30)
 
 
 @pytest.fixture
