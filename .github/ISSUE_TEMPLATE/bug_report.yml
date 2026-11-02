@@ -11,8 +11,8 @@ body:
     id: version
     attributes:
       label: AirFare version
-      description: Shown in Settings under Fine-tuning → Updates.
-      placeholder: "1.4.1"
+      description: Shown at the bottom of the Settings page, or run python -m airfare --version
+      placeholder: "1.5.0"
     validations:
       required: true
   - type: dropdown

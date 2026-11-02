@@ -13,7 +13,7 @@ import math
 import os
 from datetime import datetime
 
-from . import brand, filters, i18n, limits, markup, money
+from . import __version__, brand, filters, i18n, limits, markup, money
 from .config import DATA_DIR, REPORTS_DIR, read_json, write_json
 from .extract import Flight
 from .i18n import tr, trn
@@ -456,7 +456,7 @@ def record_check(store: dict, parts: dict[str, dict], when: datetime) -> dict:
     for rid in sorted(kept, key=lambda r: kept[r].get("checked") or "", reverse=True)[:max(KEEP_ROUTES - len(order), 0)]:
         routes[rid] = kept[rid]
     head = {lang: {k: v for k, v in p.items() if k != "routes"} for lang, p in parts.items()}
-    return {"check": {"time": stamp, "order": order, "html": head}, "routes": routes}
+    return {"check": {"time": stamp, "version": __version__, "order": order, "html": head}, "routes": routes}
 
 
 def forget(store: dict, route_ids: list[str] | None = None, everything: bool = False) -> tuple[dict, int]:
@@ -484,7 +484,8 @@ def _tab_label(r: dict) -> str:
 
 def page(store: dict, lang: str = "en") -> str:
     """The dashboard: the latest check's header, then one tab per route; earlier routes keep their last
-    check until cleared."""
+    check until cleared. A check by another version says so (brand.version_line); a store from before checks recorded
+    it names the version building the page."""
     lang = i18n.norm(lang)
     routes = {rid: r for rid, r in (store.get("routes") or {}).items() if isinstance(r, dict)}
     check = store.get("check") or {}
@@ -499,7 +500,7 @@ def page(store: dict, lang: str = "en") -> str:
         return PAGE.format(lang=lang, tokens=brand.TOKENS_CSS + brand.NAV_CSS + brand.LEGAL_CSS,
                            top=brand.top_bar("dashboard", lang), nav_script=brand.NAV_SCRIPT, dash_script="",
                            favicon=brand.FAVICON, title="AirFare", checked="", banner="", take="", tabs="", routes=body,
-                           analysis="", footer=brand.legal(lang))
+                           analysis="", footer=brand.legal(lang) + brand.version_line(lang))
     tabs, panels = [], []
     for rid in order:
         r = routes[rid]
@@ -523,7 +524,8 @@ def page(store: dict, lang: str = "en") -> str:
         title=e(head.get("title") or "AirFare"),
         checked=f'<p class="muted" style="margin:-8px 0 14px">{head.get("checked") or ""}</p>' if head.get("checked") else "",
         banner=head.get("banner") or "", take=head.get("take") or "", tabs=strip, routes="".join(panels),
-        analysis=head.get("analysis") or "", footer=(head.get("footer") or "") + brand.legal(lang))
+        analysis=head.get("analysis") or "",
+        footer=(head.get("footer") or "") + brand.legal(lang) + brand.version_line(lang, check.get("version")))
 
 
 def build(pages: list[PageData], history: dict, targets: dict[str, dict], rules: dict, when: datetime,

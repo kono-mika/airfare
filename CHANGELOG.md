@@ -85,6 +85,9 @@ Updates that never lose data, and three filters per route.
   full path. Price ranges and alert limits have a cap per currency (10,000,000 euros in its units), checked after
   converting, with its own message. No install record and a `.git` folder is a developer's setup, not an unfinished
   update.
+- **Version label.** Every page ends with *Version: 1.5.0* (*Checked with AirFare x.y.z* on a Dashboard or Price history
+  whose latest check came from another version), and it is also in Settings under Updates, first in the tray menu, in
+  `python -m airfare --version` and in `doctor`.
 - **Tests:** the check that runs the extension's code in Node.js no longer depends on the machine's speed, the
   test runner's stdin or AirFare's port (it failed once on Windows in CI, waiting for Node.js for 30 seconds).
 
