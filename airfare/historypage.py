@@ -250,6 +250,7 @@ function filterText(f) {
   if (f.max_stops === 0) parts.push(t("direct only"));
   else if (f.max_stops != null) parts.push(tn(f.max_stops, "up to {n} transfer|up to {n} transfers"));
   if ((f.exclude_airports || []).length) parts.push(t("not via {airports}", {airports: f.exclude_airports.join(", ")}));
+  if (f.max_hours != null) parts.push(t("at most {hours} h per direction", {hours: f.max_hours}));
   return parts.join(", ");
 }
 function otherFilters(x, r) {
@@ -257,7 +258,7 @@ function otherFilters(x, r) {
   const a = x.filters || {}, b = r.filters || {};
   const differs = k => a.currency && b.currency && a.currency !== b.currency ? (a[k] == null) !== (b[k] == null) : (a[k] ?? null) !== (b[k] ?? null);
   return differs("price_min") || differs("price_max") || (a.max_stops ?? null) !== (b.max_stops ?? null)
-    || (a.exclude_airports || []).join() !== (b.exclude_airports || []).join();
+    || (a.exclude_airports || []).join() !== (b.exclude_airports || []).join() || (a.max_hours ?? null) !== (b.max_hours ?? null);
 }
 function filterMark(x, r) {
   const marks = (x.marks || []).map(m => `<span class="site">${esc(t(m))}</span>`).join("");

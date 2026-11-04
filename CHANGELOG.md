@@ -4,7 +4,7 @@ Newest first. Every release keeps the data of the ones before it (see *Update Ai
 
 ## 1.5.0
 
-Updates that never lose data, and three filters per route.
+Updates that never lose data, and four filters per route.
 
 - **Data version.** `data/version.json` records which AirFare last brought the data folder up to date and its
   format (`{"app", "schema", "updated"}`). A folder without it is 1.4.1's (schema 1); this release is schema 2.
@@ -59,6 +59,7 @@ Updates that never lose data, and three filters per route.
     the next check (`history.json` keeps the filters they were set under); Settings says so when saving.
   - New price-history records taken under filters carry them (`filters`). The History page marks records taken under
     other filters than the route's current ones, and the CSV has a `filters` column at its end.
+- **Max travel time per route.** The optional `max_hours` (1 to 99, decimals allowed) hides fares where a direction takes longer, counted as *travel time* among the hidden fares, sent to Google Flights as `max_duration`, and restarting the route's alert references when changed; the global longest trip for alerts still only stops alerts.
 - **Updating by unzipping.** The zip has a top-level `AirFare` folder, so every update instruction now says to extract
   it into the folder that contains the AirFare folder (Settings shows the real one); macOS and Linux get a terminal
   command, `unzip -o AirFare.zip -d "<parent folder>"`. `AirFare.exe`, `install.ps1` and `install.sh` stop before

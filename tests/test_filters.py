@@ -1,4 +1,4 @@
-"""The three filters per route. All data here is invented: the ZZ airport codes aren't airports, and the prices,
+"""The four filters per route. All data here is invented: the ZZ airport codes aren't airports, and the prices,
 dates and flights are made up. (The real airports in the city-code tests only come from AirFare's own city list.)"""
 import asyncio
 import copy
@@ -799,3 +799,314 @@ def test_capitals_still_count_where_folders_tell_them_apart(tmp_path, monkeypatc
         (tmp_path / name).write_text("invented", encoding="utf-8")
     (tmp_path / "MANIFEST.txt").write_text(_manifest(["airfare/__init__.py", "airfare/Renamed.py"]), encoding="utf-8")
     assert upgrade.remove_leftovers(tmp_path, data=tmp_path / "data") == ["airfare/renamed.py"]
+
+
+# ----- the fourth filter: maximum travel time per direction ------------------------------------------------------
+# Each source's invented trips take, per direction: direct (a), one stop (b and d), two stops (c), in minutes.
+MINUTES = {"Skyscanner": (120, 180, 240), "Aviasales": (50, 110, 170), "Google Flights": (100, 160, 220)}
+# Per source: a limit that keeps the one-stop trips but not c, and one that keeps only the direct trip.
+BETWEEN = {"Skyscanner": 3.5, "Aviasales": 2.5, "Google Flights": 3}
+BELOW = {"Skyscanner": 2.5, "Aviasales": 1.5, "Google Flights": 2.5}
+
+
+def kept(parsed):
+    return [round(f.price) for f in parsed.flights]
+
+
+def test_the_invented_trips_take_what_the_limits_below_expect():
+    for name, make in SOURCES.items():
+        assert [f.legs[0].minutes for f in checked(make)[0].parsed.flights][:3] == list(MINUTES[name])
+
+
+@pytest.mark.parametrize("name", SOURCES)
+def test_travel_time_alone_for_every_source(name):
+    make = SOURCES[name]
+    parsed = checked(make, {"max_hours": BETWEEN[name]})[0].parsed
+    assert kept(parsed) == [100, 200, 400] and parsed.hidden == {"travel time": 1}
+    parsed = checked(make, {"max_hours": BELOW[name]})[0].parsed
+    assert kept(parsed) == [100] and parsed.hidden == {"travel time": 3}
+    assert all(ids and set(ids) <= {f.id for f in parsed.flights} for ids in parsed.picks.values())
+    assert not any(f.marks for f in parsed.flights)
+    assert prices(checked(make, {"max_hours": 99})) == [100, 200, 300, 400]
+
+
+@pytest.mark.parametrize("name", SOURCES)
+def test_travel_time_together_with_the_other_filters_for_every_source(name):
+    make = SOURCES[name]
+    parsed = checked(make, {"price_max": 350, "exclude_airports": ["ZZK"], "max_hours": BETWEEN[name]})[0].parsed
+    assert kept(parsed) == [100, 200] and parsed.hidden == {"price": 1, "travel time": 1}
+    # Each fare counts once, under its first reason: price, transfers, airports, then travel time.
+    parsed = checked(make, {"price_min": 150, "max_stops": 2, "exclude_airports": ["ZZK"], "max_hours": BELOW[name]})[0].parsed
+    assert parsed.flights == [] and parsed.hidden == {"price": 1, "airports": 1, "travel time": 2}
+    assert filters.hidden_line(parsed.hidden) == "4 fares hidden by this route's filters (price 1, airports 1, travel time 2)"
+
+
+def _trip(*minutes):
+    """An invented fare whose directions take these many minutes."""
+    return Flight("x", 100.0, "€100", [Leg("ZZA", "ZZB", "", "", m, 0, "Invented Air") for m in minutes])
+
+
+def _page(*flights):
+    return ParsedPage(list(flights), {}, True, "€", len(flights), currency_code="EUR")
+
+
+@pytest.mark.parametrize("limit, minutes, stays", [
+    (3, 180, True), (3, 181, False),                  # exactly at the limit is kept
+    (7.5, 450, True), (7.5, 451, False),              # decimals
+    (7.25, 435, True), (2.1, 126, True), (2.1, 127, False),
+    (1, 60, True), (99, 99 * 60, True), (99, 99 * 60 + 1, False),
+])
+def test_a_direction_exactly_at_the_limit_is_kept_and_decimals_count(limit, minutes, stays):
+    parsed = _page(_trip(minutes))
+    filters.apply_page(parsed, filters.normal({"max_hours": limit}))
+    assert bool(parsed.flights) is stays and parsed.hidden == ({} if stays else {"travel time": 1})
+
+
+def test_each_direction_counts_not_the_whole_trip():
+    parsed = _page(_trip(400, 400))                       # 13 h 20 in all, 6 h 40 each way
+    filters.apply_page(parsed, {"max_hours": 7})
+    assert len(parsed.flights) == 1
+    parsed = _page(_trip(300, 421))                       # the way back is too long
+    filters.apply_page(parsed, {"max_hours": 7})
+    assert parsed.flights == [] and parsed.hidden == {"travel time": 1}
+    feed = sky_feed([("a", 100.0, [])])
+    feed["itineraries"]["results"][0]["legs"].append(sky_feed([("a", 100.0, ["ZZH", "ZZJ"])])["itineraries"]["results"][0]["legs"][0])
+    res = PageResult(page=dict(PAGE), status="ok", payloads=[feed], source="Skyscanner")
+    assert prices(checked(lambda: res, {"max_hours": 3})) == []                  # 2 h out, 4 h back
+
+
+def test_a_fare_without_directions_is_kept_marked_and_never_alerts():
+    parsed = _page(Flight("x", 100.0, "€100", []))
+    filters.apply_page(parsed, {"max_hours": 2})
+    f = parsed.flights[0]
+    assert f.marks == [filters.TIME_UNKNOWN] and not report.usable(f, RULES) and not parsed.hidden
+    plain = _page(Flight("y", 100.0, "€100", []))
+    filters.apply_page(plain, {"price_max": 300})
+    assert plain.flights[0].marks == []                   # only a travel time limit needs the directions
+
+
+def test_page_text_under_a_travel_time_limit_is_never_taken_as_matching():
+    res = PageResult(page={**PAGE, "filters": {"max_hours": 7.5}}, status="ok", source="Skyscanner",
+                     text="Invented fare €50, 12 h")
+    data = report.collect([res], "EUR", RATES)
+    filters.apply(data, "EUR")
+    doc = report.build_document(data, WHEN, 0, "EUR", RATES)
+    assert "These fares are travel time unknown: this route's filters couldn't be applied" in doc
+    assert "connections unknown:" not in doc and report.route_bests(data, RULES) == {}
+    res = PageResult(page={**PAGE, "filters": {"max_hours": 7.5, "max_stops": 0}}, status="ok", source="Skyscanner", text="x")
+    data = report.collect([res], "EUR", RATES)
+    filters.apply(data, "EUR")
+    assert "These fares are connections unknown and travel time unknown:" in report.build_document(data, WHEN, 0, "EUR", RATES)
+
+
+def test_the_dashboard_and_the_price_document_say_why_fares_were_hidden():
+    data = checked(sky_page, {"price_max": 250, "max_hours": 2.5})
+    assert prices(data) == [100] and data[0].parsed.hidden == {"price": 2, "travel time": 1}
+    doc = report.build_document(data, WHEN, 0, "EUR", RATES)
+    assert "3 fares hidden by this route's filters (price 2, travel time 1)." in doc
+    assert "This route's filters: price up to €250; each direction at most 2.5 hours." in doc
+    alone = report.build_document(checked(sky_page, {"max_hours": 2.5}), WHEN, 0, "EUR", RATES)
+    assert "3 fares hidden by this route's filters (travel time 3)." in alone
+    page = html.unescape(dashboard.build(data, {"runs": []}, {}, RULES, WHEN, "", False, {}, {}, "x.md", currency="EUR", rates=RATES))
+    assert "3 fares hidden by this route's filters (price: 2, travel time: 1)" in page
+    es = html.unescape(dashboard.build(data, {"runs": []}, {}, RULES, WHEN, "", False, {}, {}, "x.md", lang="es", currency="EUR", rates=RATES))
+    assert "3 tarifas ocultas por los filtros de esta ruta (precio: 2, duración: 1)" in es
+    ru = html.unescape(dashboard.build(data, {"runs": []}, {}, RULES, WHEN, "", False, {}, {}, "x.md", lang="ru", currency="EUR", rates=RATES))
+    assert "3 тарифа скрыто фильтрами этого маршрута (цена: 2, время в пути: 1)" in ru
+    assert report.route_bests(data, RULES)["r"]["cheapest"]["price"] == 100.0
+
+
+def test_describe_says_the_limit_per_direction():
+    assert filters.describe({"max_hours": 7.5}) == "each direction at most 7.5 hours"
+    assert filters.describe({"max_hours": 1.0}) == "each direction at most 1 hour"
+    assert filters.describe({"max_stops": 0, "max_hours": 12.0}) == "direct flights only; each direction at most 12 hours"
+
+
+def test_damaged_travel_times_count_as_no_filter():
+    for bad in (0, -1, 0.5, 99.5, 100, "7", "", None, True, False, float("nan"), float("inf"), [7]):
+        assert filters.normal({"max_hours": bad}) == {}, bad
+    assert filters.normal({"max_hours": 7.5}) == {"max_hours": 7.5} and filters.normal({"max_hours": 7}) == {"max_hours": 7.0}
+    assert filters.stamped({"max_hours": 7.5}, "EUR") == {"max_hours": 7.5}           # no price range: no currency
+    assert filters.stamped({"max_hours": 7.5, "price_max": 300}, "EUR") == {"price_max": 300.0, "max_hours": 7.5, "currency": "EUR"}
+
+
+def test_same_compares_the_travel_time():
+    assert filters.same({"max_hours": 7.5}, {"max_hours": 7.5}) and filters.same({"max_hours": 7}, {"max_hours": 7.0})
+    assert not filters.same({"max_hours": 7.5}, {"max_hours": 8}) and not filters.same({"max_hours": 7.5}, {})
+    eur, rub = {"price_max": 300.0, "max_hours": 7.5, "currency": "EUR"}, {"price_max": 30000.0, "max_hours": 7.5, "currency": "RUB"}
+    assert filters.same(eur, rub, RATES) and not filters.same(eur, {**rub, "max_hours": 8}, RATES)
+
+
+@pytest.mark.parametrize("raw, saved", [("7.5", 7.5), ("7,5", 7.5), (" 12 ", 12.0), (1, 1.0), (99, 99.0), (7.25, 7.25),
+                                        ("", None), (None, None)])
+def test_the_form_saves_a_travel_time_with_decimals(monkeypatch, raw, saved):
+    monkeypatch.setattr(webui, "load_config", lambda: dict(config.DEFAULT_CONFIG))
+    assert webui.clean_config({**FORM, "routes": [_route(max_hours=raw)]})["routes"][0]["max_hours"] == saved
+
+
+@pytest.mark.parametrize("bad", ["0", 0, "-2", -2, "0.5", "99.01", "100", 150, "seven", "7h", True, [7]])
+def test_the_form_refuses_a_travel_time_that_makes_no_sense(monkeypatch, bad):
+    monkeypatch.setattr(webui, "load_config", lambda: dict(config.DEFAULT_CONFIG))
+    with pytest.raises(webui.Problem, match="Route 1: the maximum travel time should be a number of hours from 1 to 99"):
+        webui.clean_config({**FORM, "routes": [_route(max_hours=bad)]})
+    problems = {}
+    assert webui.clean_config({**FORM, "routes": [_route(max_hours=bad)]}, problems)["routes"] == []
+    assert problems["r"] == "The maximum travel time should be a number of hours from 1 to 99"
+
+
+def test_a_cleared_travel_time_stays_cleared(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "CONFIG_FILE", tmp_path / "config.json")
+    (tmp_path / "config.json").write_text(json.dumps({"routes": [_route(max_hours=7.5, future_field="kept")]}), encoding="utf-8")
+    assert "max_hours" in urls.FILTER_FIELDS and "max_hours" in config.ROUTE_FIELDS
+    monkeypatch.setattr(webui, "load_config", config.load_config)
+    form = config.load_config()
+    form["routes"][0]["max_hours"] = ""
+    config.save_config(webui.clean_config({**form, "sources": ["extension"]}))
+    stored = json.loads((tmp_path / "config.json").read_text(encoding="utf-8"))["routes"][0]
+    assert stored["max_hours"] is None and stored["future_field"] == "kept"
+    assert filters.normal(config.load_config()["routes"][0]) == {}
+    config.save_config({**config.DEFAULT_CONFIG, "routes": [{"id": "r", "origin": "zza"}]})     # a route without the field
+    assert "max_hours" not in json.loads((tmp_path / "config.json").read_text(encoding="utf-8"))["routes"][0]
+    planned = urls.plan_pages({"domain": "www.skyscanner.net", "max_pages": 20, "routes": [_route(max_hours=None)]},
+                              date(2026, 10, 26))[0][0]
+    assert "filters" not in planned
+
+
+def test_changing_the_travel_time_keeps_the_route_and_restarts_its_references(monkeypatch):
+    old = _route(name="Invented", adults=1, cabin="economy", children=[], max_hours=7.5)
+    monkeypatch.setattr(webui, "load_config", lambda: {**config.DEFAULT_CONFIG, "routes": [old]})
+    assert webui._trip(old) == webui._trip({**old, "max_hours": 9})
+    saved = webui.clean_config({**FORM, "routes": [{**old, "max_hours": "9"}]}, renew_ids=True)["routes"]
+    assert saved[0]["id"] == "r" and saved[0]["max_hours"] == 9.0
+    assert filters.changed_routes([old], saved, "EUR", "EUR") == saved
+    assert filters.changed_routes([old], [{**old, "max_hours": 7.5}], "EUR", "EUR") == []
+
+    history = history_with_references()
+    history["routes"]["r"]["filters"] = {"max_hours": 7.5}
+    assert filters.restart_references(history, [old], "EUR") == [] and report.alert_refs(history["routes"]["r"])
+    assert filters.restart_references(history, saved, "EUR") == ["r"]
+    h = history["routes"]["r"]
+    assert report.alert_refs(h) == {} and "all_time_low" not in h and "last" not in h
+    assert h["name"] == "Invented" and h["filters"] == {"max_hours": 9.0} and history["runs"]
+    assert filters.restart_references(history, [_route()], "EUR") == ["r"] and "filters" not in h      # cleared
+
+
+def test_a_whole_check_with_a_travel_time_limit(whole_check):
+    saved = whole_check()
+    assert saved["history"]["routes"]["r"]["alert_refs"]["cheapest"]["price"] == 100.0
+    saved = whole_check(max_hours=2.5)
+    assert saved["records"][-1]["price"] == 100.0 and saved["records"][-1]["filters"] == {"max_hours": 2.5}
+    h = saved["history"]["routes"]["r"]
+    assert h["filters"] == {"max_hours": 2.5} and h["alert_refs"]["cheapest"]["reason"] == "first check"
+    assert [f.price for f in saved["pages"][0].parsed.flights] == [100.0] and saved["pages"][0].parsed.hidden == {"travel time": 3}
+    set_at = h["alert_refs"]["cheapest"]["set"]
+    assert whole_check(max_hours=2.5)["history"]["routes"]["r"]["alert_refs"]["cheapest"]["set"] == set_at     # same limit
+    assert saved["alerts"] == []
+
+
+def test_settings_has_the_travel_time_under_the_other_filters_and_both_help_lines():
+    source = (ROOT / "airfare" / "static" / "index.html").read_text(encoding="utf-8")
+    field = source.index('data-k="max_hours"')
+    assert field > source.index('data-k="exclude_airports"') > source.index('data-k="cabin"')
+    assert source.count("Max travel time per direction") == 1 and source.count('id="alert_max_hours"') == 1
+    assert "The longest trip in Price alerts only stops alerts, on every route." in source[field:field + 600]
+    alerts = source.index('id="alert_max_hours"')
+    assert "a route's own max travel time hides longer fares everywhere" in source[alerts:alerts + 400]
+    page = webui.settings_page("es")
+    assert "Duración máxima por sentido" in page and "solo detiene las alertas" in page
+    assert "Макс. время в пути в одну сторону" in webui.settings_page("ru")
+
+
+def test_the_global_longest_trip_for_alerts_works_as_before():
+    data = checked(sky_page)
+    rules = report.alert_rules({**config.DEFAULT_CONFIG, "alert_max_hours": 2.5})
+    assert prices(data) == [100, 200, 300, 400] and not data[0].parsed.hidden          # it hides nothing
+    assert [report.usable(f, rules) for f in data[0].parsed.flights] == [True, False, False, False]
+
+
+def test_serpapi_gets_google_flights_own_maximum_duration_in_minutes():
+    assert serpapi.params({**SERP, "filters": {"max_hours": 7.5}}, "KEY", "EUR")["max_duration"] == 450
+    assert serpapi.params({**SERP, "filters": {"max_hours": 7.33}}, "KEY", "EUR")["max_duration"] == 440      # rounded up
+    p = serpapi.params({**SERP, "filters": {"max_hours": 12, "max_stops": 1, "price_max": 300}}, "KEY", "EUR")
+    assert p["max_duration"] == 720 and p["stops"] == 2 and p["max_price"] == 300
+    assert "max_duration" not in serpapi.params(SERP, "KEY", "EUR")
+    assert "max_duration" not in serpapi.params({**SERP, "filters": {"max_hours": 150}}, "KEY", "EUR")      # damaged
+
+
+def test_google_flights_results_are_still_filtered_on_our_side(monkeypatch):
+    asked = []
+    monkeypatch.setattr(serpapi, "_get", lambda url, timeout=90: asked.append(url) or serp_body())
+    res = serpapi.search({**PAGE, **SERP, "filters": {"max_hours": 2.5}}, "KEY", "EUR")
+    assert "max_duration=150" in asked[0]
+    data = report.collect([res], "EUR", RATES)
+    filters.apply(data, "EUR")
+    assert prices(data) == [100] and data[0].parsed.hidden == {"travel time": 3}     # Google sent the longer ones anyway
+
+
+def test_skyscanner_and_aviasales_links_dont_change():
+    today = date(2026, 10, 26)
+    plain = urls.route_pages(_route(), "www.skyscanner.net", today)[0]["url"]
+    assert urls.route_pages(_route(max_hours=7.5), "www.skyscanner.net", today)[0]["url"] == plain
+    page = {"origin": "zza", "destination": "zzb", "depart": "2027-03-12", "filters": {"max_hours": 7.5}}
+    assert urls.aviasales_url(page, today) == urls.aviasales_url({k: v for k, v in page.items() if k != "filters"}, today)
+    planned = urls.plan_pages({"domain": "www.skyscanner.net", "max_pages": 20, "routes": [_route(max_hours=7.5)]}, today)[0][0]
+    assert planned["filters"] == {"max_hours": 7.5} and planned["url"] == plain
+
+
+def test_new_records_carry_the_travel_time(store):
+    data = checked(sky_page, {"max_hours": 7.5, "price_max": 300})
+    pricelog.add(pricelog.records_from_check(data, WHEN))
+    assert pricelog.load()[-1]["filters"] == {"price_max": 300.0, "max_hours": 7.5, "currency": "EUR"}
+    cfg = {**config.DEFAULT_CONFIG, "routes": [_route(max_hours=7.5)], "currency": "EUR"}
+    assert historypage.routes_info(cfg, [])[0]["filters"] == {"max_hours": 7.5}
+
+
+def test_the_history_page_and_its_csv_show_the_travel_time(store):
+    """filterText (also the CSV's filters column) and otherFilters with max_hours, run when Node.js is available."""
+    source = historypage.PAGE
+    assert "filterText(x.filters)]" in source
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js isn't installed")
+    import subprocess
+    script = """
+const D = {currency: "EUR", sign: "€", sign_after: false, texts: {}};
+const t = (s, p) => String(s).replace(/\\{(\\w+)\\}/g, (m, k) => (p && k in p ? p[k] : m));
+const tn = (n, forms, p) => t(forms.split("|")[n === 1 ? 0 : 1], {n, ...p});
+const esc = s => String(s);
+function money(v) { return D.sign + Math.round(v); }
+""" + source[source.index("// The filters a record was taken under"):source.index("function setDates(r)")] + """
+const route = {active: true, filters: {max_hours: 7.5}};
+console.log(JSON.stringify({
+  text: filterText({price_max: 300, currency: "EUR", max_stops: 1, max_hours: 7.5}),
+  alone: filterText({max_hours: 12}),
+  same: otherFilters({filters: {max_hours: 7.5}}, route),
+  other: otherFilters({filters: {max_hours: 9}}, route),
+  old: otherFilters({}, route),
+  mark: filterMark({filters: {max_hours: 9}, marks: ["travel time unknown"]}, route),
+}));
+"""
+    out = subprocess.run([node, "-"], input=script, capture_output=True, text=True, encoding="utf-8", timeout=60)
+    assert out.returncode == 0, out.stderr
+    got = json.loads(out.stdout)
+    assert got["text"] == "up to €300, up to 1 transfer, at most 7.5 h per direction"
+    assert got["alone"] == "at most 12 h per direction"
+    assert got["same"] is False and got["other"] is True and got["old"] is True
+    assert "travel time unknown" in got["mark"] and "taken under other filters: at most 9 h per direction" in got["mark"]
+
+
+def test_the_1_4_1_data_loads_unchanged_without_a_travel_time(data_141):
+    raw = json.loads((data_141 / "config.json").read_text(encoding="utf-8"))
+    migrate.ensure(data_141)
+    cfg = config.load_config()
+    assert all("max_hours" not in r for r in cfg["routes"]) and [r["id"] for r in cfg["routes"]] == [r["id"] for r in raw["routes"]]
+    pages, _ = urls.plan_pages({**cfg, "routes": [{**r, "enabled": True} for r in cfg["routes"]]}, date(2026, 10, 26))
+    assert pages and all("filters" not in p for p in pages)
+    asked = [serpapi.params({**p, "origin": "zza", "destination": "zzb"}, "KEY", "EUR") for p in pages if p.get("depart")]
+    assert asked and all("max_duration" not in a for a in asked)        # (its codes are invented, so Google gets ZZA-ZZB)
+    history = json.loads((data_141 / "history.json").read_text(encoding="utf-8"))
+    before = copy.deepcopy(history)
+    assert filters.restart_references(history, cfg["routes"], cfg["currency"]) == [] and history == before
+    saved = webui.clean_config({**cfg, "llm_provider": "none"}, renew_ids=True)
+    assert [r["id"] for r in saved["routes"]] == ["fx01ab", "fx02cd"] and all(r["max_hours"] is None for r in saved["routes"])
+    assert filters.changed_routes(cfg["routes"], saved["routes"], "EUR", "EUR") == []

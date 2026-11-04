@@ -82,6 +82,7 @@ Cada combinación de fechas usa una búsqueda por comprobación. En **Cuándo co
 1. En **Moneda**, elige Euro, Libra, Dólar o Rublo, u otra moneda en **Otra**. Todos los precios se comparan y se muestran en ella; los que un sitio muestra en otra moneda se convierten con el tipo de cambio del día.
 2. En **Vuelos a seguir**, escribe códigos de aeropuerto o ciudad (LHR, BCN, LOND), una fecha o un rango de fechas, los adultos y, si viajan niños, sus edades (por ejemplo `4, 9`).
    Debajo de **Clase**, cada ruta también puede tener filtros: **Rango de precios**, **Máximo de escalas por sentido** y **Aeropuertos de escala excluidos** (códigos IATA separados por comas; los códigos de ciudad como LOND equivalen a sus aeropuertos). Los filtros ocultan tarifas en todas partes; los límites de precio de las alertas deciden cuándo avisar de las tarifas que quedan. Cambiar los filtros de una ruta conserva su historial y reinicia sus referencias de alerta en la próxima comprobación.
+   **Duración máxima por sentido** (en horas, con decimales) oculta las tarifas en las que algún sentido dura más; el viaje más largo de **Alertas de precio** solo detiene las alertas, en todas las rutas.
 3. En **Alertas de precio**, pon un umbral para cada tipo: **Más barato**, **Más rápido** y **Mejor opción**. Cada uno avisa cuando su precio baja el porcentaje que elijas o llega a tu límite de precio. También puedes ignorar viajes muy largos o con autotransbordo.
 4. Pulsa **Guardar** y luego **Probar enlaces**.
 

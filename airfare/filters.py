@@ -1,13 +1,17 @@
 """A route's filters: which fares it shows at all, as opposed to the alert limits, which decide when to alert.
 
 Route fields, all optional (missing means no filter): price_min and price_max in the user's currency, max_stops
-(None for any; 0 is Direct only) and exclude_airports (airport or city codes).
+(None for any; 0 is Direct only), exclude_airports (airport or city codes) and max_hours (the longest a direction
+may take, door to door including stops, in hours from 1 to 99, decimals allowed).
 
 apply() is the one place they work: after a check's prices are read and converted, it takes the fares that don't
 match off each page, so the dashboard, the alerts, the price document, the analyst, the best-value pick, the price
 history and the CSV export only ever see the rest. Fares it can't judge stay, marked (Flight.marks), and don't
 count for alerts: connections that can't be read while the route excludes airports, prices that couldn't be
-converted while it has a price range.
+converted while it has a price range, directions that aren't known (page text) while it has a travel time limit.
+
+max_hours is not the alerts' "longest trip" setting (alert_max_hours, report.usable): that one applies to every
+route and only stops alerts, while this one hides the longer fares of one route everywhere.
 
 Filters aren't part of what makes a route the same search (webui._trip): changing them keeps its id, tab, price
 history and lookups. They do restart its alert references, because an old reference may be a fare that's now
@@ -29,7 +33,9 @@ log = logging.getLogger(__name__)
 
 CONNECTIONS_UNKNOWN = "connections unknown"
 PRICE_UNKNOWN = "price unknown"
-REASONS = ("price", "transfers", "airports")
+TIME_UNKNOWN = "travel time unknown"
+REASONS = ("price", "transfers", "airports", "travel time")
+HOURS = (1, 99)         # the shortest and longest max_hours a route may have
 _IATA_CITIES = {iata: city for city, iata in CITY_CODES.items()}
 _CODE_RE = re.compile(r"^[A-Z]{3}$")
 PRICE_KEYS = ("price_min", "price_max")
@@ -66,6 +72,13 @@ def _price(value) -> float | None:
     return float(value)
 
 
+def hours(value) -> float | None:
+    """A route's max_hours as a number of hours, or None when it isn't one from 1 to 99."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        return None
+    return float(value) if HOURS[0] <= value <= HOURS[1] else None
+
+
 def normal(raw: dict | None) -> dict:
     """The filters that are really on, always in the same form. Missing or damaged fields (config.json can be
     edited by hand, or come from another version) count as no filter."""
@@ -81,6 +94,9 @@ def normal(raw: dict | None) -> dict:
     airports = clean_codes(raw.get("exclude_airports"))
     if airports:
         out["exclude_airports"] = sorted(airports)
+    limit = hours(raw.get("max_hours"))
+    if limit is not None:
+        out["max_hours"] = limit
     return out
 
 
@@ -119,7 +135,14 @@ def _why_hidden(f, chosen: dict, excluded: set[str], comparable: bool) -> str | 
         return "transfers"
     if excluded & set(f.connections):
         return "airports"
+    if "max_hours" in chosen and any(leg.minutes > _minutes(chosen["max_hours"]) for leg in f.legs):
+        return "travel time"
     return None
+
+
+def _minutes(limit: float) -> float:
+    """max_hours in minutes; a direction that takes exactly this long is kept."""
+    return round(limit * 60, 6)
 
 
 def _repick(parsed: ParsedPage) -> None:
@@ -148,6 +171,8 @@ def apply_page(parsed: ParsedPage | None, chosen: dict) -> None:
             f.marks.append(CONNECTIONS_UNKNOWN)
         if has_range and not parsed.comparable and PRICE_UNKNOWN not in f.marks:
             f.marks.append(PRICE_UNKNOWN)
+        if "max_hours" in chosen and not f.legs and TIME_UNKNOWN not in f.marks:
+            f.marks.append(TIME_UNKNOWN)
     if hidden:
         parsed.flights, parsed.hidden = kept, hidden
         _repick(parsed)
@@ -176,7 +201,8 @@ def hidden_counts(pages: list) -> dict[str, int]:
 # ----- saying what they do (the price document is always in English) --------------------------------------------
 
 def describe(chosen: dict) -> str:
-    """"price from €100 to €300; at most 1 transfer per direction; no transfers at IST"."""
+    """"price from €100 to €300; at most 1 transfer per direction; no transfers at IST; each direction at most
+    7.5 hours"."""
     parts = []
 
     def amount(key: str) -> str:
@@ -193,11 +219,20 @@ def describe(chosen: dict) -> str:
         parts.append("direct flights only" if n == 0 else f"at most {n} transfer{'s' if n > 1 else ''} per direction")
     if chosen.get("exclude_airports"):
         parts.append("no transfers at " + ", ".join(sorted(expand(chosen["exclude_airports"]))))
+    if "max_hours" in chosen:
+        h = chosen["max_hours"]
+        parts.append(f"each direction at most {h:g} hour{'' if h == 1 else 's'}")
     return "; ".join(parts)
 
 
+def text_marks(chosen: dict) -> list[str]:
+    """What fares that only came as page text are, under these filters: none of them can be checked."""
+    marks = [CONNECTIONS_UNKNOWN] if set(chosen) - {"max_hours", "currency"} else []
+    return marks + ([TIME_UNKNOWN] if "max_hours" in chosen else [])
+
+
 def hidden_line(hidden: dict[str, int]) -> str:
-    """"3 fares hidden by this route's filters (price 2, transfers 1)"."""
+    """"3 fares hidden by this route's filters (price 2, travel time 1)"."""
     total = sum(hidden.values())
     why = ", ".join(f"{r} {hidden[r]}" for r in REASONS if r in hidden)
     return f"{total} fare{'' if total == 1 else 's'} hidden by this route's filters ({why})"

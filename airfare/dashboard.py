@@ -26,7 +26,8 @@ TREND_RUNS = 30
 LIST_SIZE = 3
 KIND_LABELS = {"cheapest": "Cheapest", "fastest": "Fastest", "best": "Best value"}
 TAGS = {"overnight layover": "overnight layover", "visa needed": "visa needed", "self-transfer": "self-transfer",
-        filters.CONNECTIONS_UNKNOWN: filters.CONNECTIONS_UNKNOWN, filters.PRICE_UNKNOWN: filters.PRICE_UNKNOWN}
+        filters.CONNECTIONS_UNKNOWN: filters.CONNECTIONS_UNKNOWN, filters.PRICE_UNKNOWN: filters.PRICE_UNKNOWN,
+        filters.TIME_UNKNOWN: filters.TIME_UNKNOWN}
 
 e = html.escape
 
@@ -256,7 +257,8 @@ def _hidden_note(pages: list[PageData], lang: str) -> str:
     if not counts:
         return ""
     why = {"price": tr("price: {n}", lang, n=counts.get("price")), "transfers": tr("transfers: {n}", lang, n=counts.get("transfers")),
-           "airports": tr("airports: {n}", lang, n=counts.get("airports"))}
+           "airports": tr("airports: {n}", lang, n=counts.get("airports")),
+           "travel time": tr("travel time: {n}", lang, n=counts.get("travel time"))}
     return (trn(sum(counts.values()), "{n} fare hidden by this route's filters|{n} fares hidden by this route's filters", lang)
             + " (" + ", ".join(why[r] for r in counts) + ")")
 

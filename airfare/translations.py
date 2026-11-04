@@ -1269,6 +1269,27 @@ _FILTERS = {
     "not via {airports}": ("sin pasar por {airports}", "не через {airports}"),
     "taken under other filters: {filters}": ("registrado con otros filtros: {filters}", "записано с другими фильтрами: {filters}"),
     "taken without filters": ("registrado sin filtros", "записано без фильтров"),
+    # the fourth filter: maximum travel time per direction
+    "Max travel time per direction": ("Duración máxima por sentido", "Макс. время в пути в одну сторону"),
+    "Hides this route's longer fares everywhere, stops included. The longest trip in Price alerts only stops alerts, on every route.":
+        ("Oculta en todas partes las tarifas más largas de esta ruta, con las escalas incluidas. El viaje más largo de "
+         "Alertas de precio solo detiene las alertas, en todas las rutas.",
+         "Скрывает везде более долгие тарифы этого маршрута, с учётом пересадок. Самая долгая поездка в «Оповещениях "
+         "о ценах» только отключает оповещения, для всех маршрутов."),
+    "This applies to every route and only stops alerts; a route's own max travel time hides longer fares everywhere.":
+        ("Se aplica a todas las rutas y solo detiene las alertas; la duración máxima propia de una ruta oculta las "
+         "tarifas más largas en todas partes.",
+         "Действует для всех маршрутов и только отключает оповещения; собственное максимальное время в пути маршрута "
+         "скрывает более долгие тарифы везде."),
+    "the maximum travel time should be a number of hours from 1 to 99":
+        ("la duración máxima debe ser un número de horas entre 1 y 99",
+         "максимальное время в пути должно быть числом часов от 1 до 99"),
+    "The maximum travel time should be a number of hours from 1 to 99":
+        ("La duración máxima debe ser un número de horas entre 1 y 99",
+         "Максимальное время в пути должно быть числом часов от 1 до 99"),
+    "travel time: {n}": ("duración: {n}", "время в пути: {n}"),
+    "travel time unknown": ("duración desconocida", "время в пути неизвестно"),
+    "at most {hours} h per direction": ("como máximo {hours} h por sentido", "не более {hours} ч в одну сторону"),
 }
 
 T: dict[str, dict] = {k: {"es": es, "ru": ru} for k, (es, ru) in

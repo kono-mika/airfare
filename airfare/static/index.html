@@ -315,6 +315,7 @@ code { background: var(--soft); border-radius: 5px; padding: 1px 6px; font-size:
       <div class="filters">
         <label class="num"><span data-i18n>Ignore trips where one direction takes longer than</span>
           <input type="number" id="alert_max_hours" min="1" max="99" step="1"> <span data-i18n>hours</span></label>
+        <p class="muted" style="margin:0" data-i18n>This applies to every route and only stops alerts; a route's own max travel time hides longer fares everywhere.</p>
         <label class="opt" style="padding:0"><input type="checkbox" id="alert_no_self_transfer">
           <span data-i18n>Ignore self-transfer trips (you collect your bags and check in again)</span></label>
       </div>
@@ -589,6 +590,9 @@ code { background: var(--soft); border-radius: 5px; padding: 1px 6px; font-size:
           </select></label>
         <label class="f"><span data-i18n>Excluded transfer airports</span>
           <input type="text" data-k="exclude_airports" data-i18n-ph="none, or e.g. IST, LOND"></label>
+        <label class="f"><span data-i18n>Max travel time per direction</span>
+          <span class="pair"><input type="number" data-k="max_hours" min="1" max="99" step="any" inputmode="decimal" style="flex:1"> <span data-i18n>hours</span></span>
+          <span class="muted" data-i18n>Hides this route's longer fares everywhere, stops included. The longest trip in Price alerts only stops alerts, on every route.</span></label>
       </div>
       <details class="pages" open>
         <summary></summary>
