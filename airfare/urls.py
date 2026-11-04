@@ -6,7 +6,7 @@ from datetime import date, timedelta
 from urllib.parse import parse_qs, urlencode, urlparse
 
 CABINS = ("economy", "premiumeconomy", "business", "first")
-FILTER_FIELDS = ("price_min", "price_max", "max_stops", "exclude_airports")     # a route's filters (see filters.py)
+FILTER_FIELDS = ("price_min", "price_max", "max_stops", "exclude_airports", "max_hours")     # a route's filters (see filters.py)
 
 # The first two path parts are localized: /transport/flights/, /transporte/vuelos/, /transports/vols/, ...
 _PATH_RE = re.compile(r"^/[^/]+/[^/]+/([a-z0-9]{2,8})/([a-z0-9]{2,8})/(\d{6})(?:/(\d{6}))?(?:/|$)", re.I)

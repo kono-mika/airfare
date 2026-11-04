@@ -57,7 +57,8 @@ DEFAULT_CONFIG = {
     "alerts": {"cheapest": {"on": True, "drop": 5, "max": None},
                "fastest": {"on": True, "drop": 3, "max": None},
                "best": {"on": True, "drop": 3, "max": None}},
-    "alert_max_hours": None,         # alerts ignore trips where one direction takes longer than this
+    "alert_max_hours": None,         # alerts ignore trips where one direction takes longer than this, on every route
+                                     # (a route's own max_hours hides them instead: filters.py)
     "alert_no_self_transfer": False,  # alerts ignore self-transfer trips
     # Automatic clean-up after each check, in days (None keeps everything): price history records, check
     # reports, and earlier routes on the dashboard.
@@ -74,7 +75,7 @@ DEFAULT_CONFIG = {
 # a newer or older AirFare), and any top-level key not in DEFAULT_CONFIG, so settings survive going either way.
 ROUTE_FIELDS = ("id", "name", "enabled", "origin", "destination", "trip", "depart_from", "depart_to", "return_from",
                 "return_to", "adults", "children", "cabin", "direct_only", "manual_pages",
-                "price_min", "price_max", "max_stops", "exclude_airports")
+                "price_min", "price_max", "max_stops", "exclude_airports", "max_hours")
 # Keys this version reads only to convert them (load_config, migrate.py): saving never brings them back.
 RETIRED_KEYS = ("min_drop_percent",)
 

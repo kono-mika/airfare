@@ -195,6 +195,17 @@ def clean_filters(r: dict, old: dict | None, old_currency: str, currency: str, r
     if airports is None:
         problem = "excluded transfer airports should be 3-letter airport codes or city codes like LOND, separated by commas"
     out["exclude_airports"] = airports or []
+    # The longest a direction may take, in hours (decimals allowed, "7,5" too); empty for no limit.
+    limit = r.get("max_hours")
+    limit = limit.strip().replace(",", ".") if isinstance(limit, str) else limit
+    out["max_hours"] = None
+    if limit not in (None, ""):
+        try:
+            out["max_hours"] = filters.hours(limit if isinstance(limit, bool) else float(limit))
+        except (TypeError, ValueError):
+            pass
+        if out["max_hours"] is None:
+            problem = "the maximum travel time should be a number of hours from 1 to 99"
     return out, problem
 
 

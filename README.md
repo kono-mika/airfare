@@ -11,7 +11,7 @@ to your target. Otherwise it stays silent.
 - **Analyst, optional:** Claude, ChatGPT or DeepSeek reads every check, picks the best-value flight and
   writes a short take. With *No analyst*, AirFare's own rules alert on the cheapest and fastest fares.
 - **Routes:** airport or city codes, exact dates or ranges, adults, children by age, cabin, and filters for
-  price, transfers and transfer airports.
+  price, transfers, transfer airports and travel time.
 - **Currencies:** any of the 30-odd the European Central Bank publishes, plus the ruble; every price is
   converted and compared in yours.
 - **Pages:** a dashboard with one tab per route and a price trend, a price history with CSV export,
@@ -114,17 +114,18 @@ rate.
 
 ## Routes
 
-Each route card has three optional filters under **Cabin**:
+Each route card has four optional filters under **Cabin**:
 
 - **Price range:** *From* and *To*, either or both, in your currency.
 - **Max transfers per direction:** Any, Direct only, Up to 1 or Up to 2. A trip counts by its direction with the
   most stops.
 - **Excluded transfer airports:** IATA codes separated by commas. City codes (`LOND`, `LON`) stand for their airports.
+- **Max travel time per direction:** in hours, decimals allowed (1 to 99), door to door including stops; Google Flights also gets it as `max_duration`.
 
 Filters hide fares. A fare that doesn't match is left out everywhere: the dashboard, the three alert kinds, the
 price document and the analyst, the best-value pick, new price-history records and the CSV export. The dashboard's
 route header and the price document say how many were hidden and why (*5 fares hidden by this route's filters*),
-per reason: price, transfers, airports. A route without filters works as it always did.
+per reason: price, transfers, airports, travel time. A route without filters works as it always did.
 
 Some fares can't be judged, so they stay, marked, and don't count for alerts:
 
@@ -157,6 +158,8 @@ alert, or the first price seen), or at or under your optional price limit. A kin
 when that kind alerts. Alerts can also ignore trips where one direction takes longer than a set number
 of hours, and self-transfer trips. AirFare applies these rules itself, so cheapest and fastest still
 alert when the analyst can't be reached.
+
+The longest trip for alerts applies to every route and only stops alerts; a route's max travel time hides longer fares everywhere.
 
 A route's filters (see *Routes*) come first: they hide fares, while the price limits here decide when to alert
 about the fares left. Alerts only ever see matching fares, and the best-value pick has to be a captured fare that
@@ -419,7 +422,7 @@ published, so expect that answer often.
 
 ## Files (`data/`)
 
-- `config.json`: routes (with their optional filters `price_min`, `price_max`, `max_stops`, `exclude_airports`),
+- `config.json`: routes (with their optional filters `price_min`, `price_max`, `max_stops`, `exclude_airports`, `max_hours`),
   sources and settings, written by the form. It includes your SerpApi, Anthropic,
   OpenAI and DeepSeek keys, encrypted with Windows DPAPI (`dpapi:…`) so that only your Windows account on
   this PC can read them; keys saved by an older version in plain text are encrypted at the next save. On

@@ -74,6 +74,8 @@ def params(page: dict, api_key: str, currency: str) -> dict:
         p["max_price"] = math.ceil(chosen["price_max"])
     if "exclude_airports" in chosen:
         p["exclude_conns"] = ",".join(sorted(filters.expand(chosen["exclude_airports"])))
+    if "max_hours" in chosen:
+        p["max_duration"] = math.ceil(chosen["max_hours"] * 60)    # in minutes
     return p
 
 

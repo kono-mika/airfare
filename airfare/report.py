@@ -203,8 +203,8 @@ def build_document(pages: list[PageData], when: datetime, left_out: int, currenc
         lines += ["", f"## {rpages[0].page['route_name']} (route `{rid}`)"]
         if rpages[0].page.get("filters"):
             lines += ["", f"This route's filters: {filters.describe(rpages[0].page['filters'])}. Only fares that match "
-                          "are listed below. A fare marked \"connections unknown\" or \"price unknown\" couldn't be "
-                          "checked against them, and doesn't count for alerts."]
+                          "are listed below. A fare marked \"connections unknown\", \"price unknown\" or \"travel time "
+                          "unknown\" couldn't be checked against them, and doesn't count for alerts."]
         for pd in sorted(rpages, key=lambda p: (p.page.get("depart") or "", p.page.get("return") or "", p.result.source)):
             lines += _page_section(pd)
     return "\n".join(lines) + "\n"
@@ -256,8 +256,8 @@ def _page_section(pd: PageData) -> list[str]:
         out += ["", "No structured results were captured; this is the visible page text:", "", "```",
                 res.text.strip()[:6000], "```"]
         if page.get("filters"):
-            out += ["", f"These fares are {filters.CONNECTIONS_UNKNOWN}: this route's filters couldn't be applied to "
-                        "page text, so don't take them as matching."]
+            out += ["", f"These fares are {' and '.join(filters.text_marks(page['filters']))}: this route's filters "
+                        "couldn't be applied to page text, so don't take them as matching."]
     return out
 
 
